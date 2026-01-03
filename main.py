@@ -73,37 +73,36 @@ def login():
     print("Demasiados intentos fallidos. Saliendo...")
     sys.exit()
 
-def generar_qr(codigo_producto):
-    """Genera una imagen QR basada en el código del producto."""
-    # Nombre de la carpeta donde se guardarán los QR
+def generar_qr(nombre_archivo, info_contenido):
+    """
+    Genera un QR.
+    nombre_archivo: Cómo se llamará la imagen (ej: PAP-001).
+    info_contenido: Texto que aparecerá al escanearlo.
+    """
     carpeta = "codigos_qr"
-    
-    # Si la carpeta no existe, la crea automáticamente
     if not os.path.exists(carpeta):
         os.makedirs(carpeta)
     
-    # Contenido del QR (En este caso, el código único del producto)
-    contenido = codigo_producto
-    
-    # Crear la imagen QR
+    # Configuramos el QR
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
         border=4,
     )
-    qr.add_data(contenido)
+    
+    # Aquí metemos toda la información combinada
+    qr.add_data(info_contenido)
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
     
-    # Guardar la imagen
-    ruta_archivo = f"{carpeta}/{codigo_producto}.png"
-    img.save(ruta_archivo)
-    print(f">> Código QR generado exitosamente en: {ruta_archivo}")
+    ruta = f"{carpeta}/{nombre_archivo}.png"
+    img.save(ruta)
+    print(f">> QR generado con éxito en: {ruta}")
 
 def registrar_producto():
-    """Permite registrar nuevos productos y genera su QR (RF-002, RF-003)."""
+    """Registra productos y genera un QR con información detallada."""
     print("\n--- REGISTRO DE NUEVO PRODUCTO ---")
     codigo = input("Ingrese Código del producto (o ENTER para cancelar): ")
     if not codigo: return
@@ -122,18 +121,27 @@ def registrar_producto():
         print("Error: Precio y Cantidad deben ser números.")
         return
 
+    # 1. Guardar en la "Base de Datos"
     inventario_db[codigo] = {
         "nombre": nombre,
         "categoria": categoria,
         "precio": precio,
         "stock": cantidad
     }
+    guardar_datos()
     
-    guardar_datos() # Guardar en JSON
+    # 2. Preparar la info para el QR (Aquí ocurre la magia)
+    # Usamos \n para saltos de línea, así se ve ordenado en el celular.
+    texto_qr = (
+        f"ID: {codigo}\n"
+        f"Producto: {nombre}\n"
+        f"Categoría: {categoria}\n"
+        f"Precio: ${precio:.2f}"
+    )
     
-    # --- NUEVO: GENERAR EL QR AUTOMÁTICAMENTE ---
-    print("Generando código QR...")
-    generar_qr(codigo) 
+    print("Generando código QR con información...")
+    # Pasamos el ID (para el nombre del archivo) y el TEXTO COMPLETO (para el contenido)
+    generar_qr(codigo, texto_qr) 
     
     print(f"Producto '{nombre}' registrado correctamente.")
 
@@ -297,4 +305,3 @@ def menu_principal():
 # --- PUNTO DE ENTRADA ---
 if __name__ == "__main__":
     menu_principal()
-    
