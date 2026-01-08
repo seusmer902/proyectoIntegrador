@@ -30,40 +30,40 @@
         "stock": 49
     },
     "PAP-006": {
+        "nombre": "Borrador de Queso",
+        "categoria": "Utiles",
+        "precio": 0.5,
+        "stock": 74
+    },
+    "PAP-007": {
         "nombre": "Lapis",
         "categoria": "Escritura",
         "precio": 0.5,
         "stock": 25
     },
-    "PAP-007": {
+    "PAP-008": {
         "nombre": "Lápiz Mongul HB",
         "categoria": "Escritura",
         "precio": 0.4,
         "stock": 97
     },
-    "PAP-008": {
+    "PAP-009": {
         "nombre": "Esfero Negro Bic",
         "categoria": "Escritura",
         "precio": 0.6,
         "stock": 200
     },
-    "PAP-009": {
+    "PAP-010": {
         "nombre": "Esfero Azul Bic",
         "categoria": "Escritura",
         "precio": 0.6,
         "stock": 200
     },
-    "PAP-010": {
+    "PAP-011": {
         "nombre": "Esfero Rojo Bic",
         "categoria": "Escritura",
         "precio": 0.6,
         "stock": 200
-    },
-    "PAP-011": {
-        "nombre": "Borrador de Queso",
-        "categoria": "Utiles",
-        "precio": 0.5,
-        "stock": 74
     },
     "PAP-012": {
         "nombre": "Marcador Negro",

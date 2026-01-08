@@ -4,114 +4,126 @@ import os
 import qrcode
 from datetime import datetime
 
-# --- CONFIGURACIÓN ---
+# ==========================================
+# 1. CONFIGURACIÓN Y CONSTANTES
+# ==========================================
 ARCHIVO_DATOS = "inventario.json"
+ARCHIVO_VENTAS = "ventas.json"
 CARPETA_QR = "codigos_qr"
 
+# Variables Globales en Memoria
+inventario_db = {}
+ventas_db = []
+usuarios_db = {
+    "admin": {"pass": "123", "rol": "Administrador"},
+    "empleado": {"pass": "123", "rol": "Empleado"},
+}
 
-def limpiar_pantalla():
-    # Detecta el sistema operativo y ejecuta el comando de limpieza
-    if os.name == "nt":  # Windows
-        os.system("cls")
-    else:  # Linux / Mac
-        os.system("clear")
-
-
-# --- DATOS SEMILLA ---
+# Datos Semilla (Solo si el archivo no existe)
 INVENTARIO_INICIAL = {
     "PAP-001": {
-        "nombre": "Cuaderno Universitario",
+        "nombre": "Cuaderno 100h",
         "categoria": "Cuadernos",
         "precio": 1.50,
         "stock": 50,
     },
     "PAP-002": {
-        "nombre": "Esfero Azul Bic",
+        "nombre": "Esfero Azul",
         "categoria": "Escritura",
         "precio": 0.60,
         "stock": 200,
     },
     "PAP-003": {
-        "nombre": "Resma Papel Bond A4",
+        "nombre": "Resma Papel A4",
         "categoria": "Papel",
         "precio": 4.50,
         "stock": 30,
     },
 }
 
-usuarios_db = {
-    "admin": {"pass": "123", "rol": "Administrador"},
-    "empleado": {"pass": "123", "rol": "Empleado"},
-}
 
-inventario_db = {}
+# ==========================================
+# 2. PERSISTENCIA (MANEJO DE ARCHIVOS)
+# ==========================================
+def cargar_datos_sistema():
+    """Carga tanto el inventario como el historial de ventas al iniciar."""
+    global inventario_db, ventas_db
 
-
-# --- 1. PERSISTENCIA (GUARDAR/CARGAR) ---
-def cargar_datos():
-    global inventario_db
+    # 1. Cargar Inventario
     if os.path.exists(ARCHIVO_DATOS):
         try:
             with open(ARCHIVO_DATOS, "r", encoding="utf-8") as f:
                 inventario_db = json.load(f)
-        except json.JSONDecodeError:
+        except Exception:
             inventario_db = {}
     else:
-        print(">> Primera ejecución. Cargando datos iniciales...")
+        print(">> Primera ejecución. Cargando datos semilla...")
         inventario_db = INVENTARIO_INICIAL.copy()
-        guardar_datos()
+        guardar_inventario()
+
+    # 2. Cargar Ventas
+    if os.path.exists(ARCHIVO_VENTAS):
+        try:
+            with open(ARCHIVO_VENTAS, "r", encoding="utf-8") as f:
+                ventas_db = json.load(f)
+        except Exception:
+            ventas_db = []
+    else:
+        ventas_db = []
 
 
-def guardar_datos():
+def guardar_inventario():
+    """Guarda los cambios del inventario en el JSON."""
     try:
         with open(ARCHIVO_DATOS, "w", encoding="utf-8") as f:
             json.dump(inventario_db, f, indent=4, ensure_ascii=False)
     except Exception as e:
-        print(f"Error al guardar: {e}")
+        print(f"Error al guardar inventario: {e}")
 
 
-# --- 2. GENERADOR DE QR (LA IMPRESORA) ---
+def guardar_historial_ventas():
+    """Guarda el historial de ventas en el JSON."""
+    try:
+        with open(ARCHIVO_VENTAS, "w", encoding="utf-8") as f:
+            json.dump(ventas_db, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error al guardar ventas: {e}")
+
+
+# ==========================================
+# 3. UTILIDADES Y HERRAMIENTAS
+# ==========================================
+def limpiar_pantalla():
+    """Limpia la consola según el SO."""
+    if os.name == "nt":
+        os.system("cls")
+    else:
+        os.system("clear")
+
+
 def generar_qr(nombre_archivo, info_contenido):
-    """Crea la imagen QR en la carpeta."""
+    """Genera una imagen QR en la carpeta designada."""
     if not os.path.exists(CARPETA_QR):
         os.makedirs(CARPETA_QR)
 
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
     qr.add_data(info_contenido)
     qr.make(fit=True)
 
     img = qr.make_image(fill_color="black", back_color="white")
-
-    ruta_completa = f"{CARPETA_QR}/{nombre_archivo}.png"
-    img.save(ruta_completa)
-    print(f">> QR generado con éxito en: {ruta_completa}")
-
-
-# --- 3. FUNCIONES DEL SISTEMA ---
-def login():
-    print("\n--- SISTEMA DE INVENTARIO V-1.5.2 ---")
-    intentos = 3
-    while intentos > 0:
-        usuario = input("Usuario: ")
-        password = input("Contraseña: ")
-        if usuario in usuarios_db and usuarios_db[usuario]["pass"] == password:
-            return usuarios_db[usuario]["rol"]
-        else:
-            print("Credenciales incorrectas.")
-            intentos -= 1
-    sys.exit()
+    ruta = f"{CARPETA_QR}/{nombre_archivo}.png"
+    img.save(ruta)
+    print(f">> QR generado: {ruta}")
 
 
+# ==========================================
+# 4. ADMINISTRACIÓN DE PRODUCTOS (CRUD)
+# ==========================================
 def registrar_producto():
-    print("\n--- REGISTRO ---")
-    codigo = input("Código (ej: PAP-001): ")
-    if not codigo or codigo in inventario_db:
-        print("Error: Código vacío o duplicado.")
+    print("\n--- REGISTRO DE PRODUCTO ---")
+    codigo = input("Código (ej: PAP-001): ").strip()
+    if codigo in inventario_db:
+        print("⚠️ Error: Código ya existe.")
         return
 
     nombre = input("Nombre: ")
@@ -120,7 +132,7 @@ def registrar_producto():
         precio = float(input("Precio: "))
         stock = int(input("Stock inicial: "))
     except ValueError:
-        print("Error: Ingrese números válidos.")
+        print("⚠️ Error: Ingrese números válidos.")
         return
 
     inventario_db[codigo] = {
@@ -129,22 +141,23 @@ def registrar_producto():
         "precio": precio,
         "stock": stock,
     }
-    guardar_datos()
+    guardar_inventario()
 
-    # Generar QR Automático
-    texto_qr = f"ID: {codigo}\nProducto: {nombre}\nPrecio: ${precio:.2f}"
-    generar_qr(codigo, texto_qr)
+    # Generar QR automático
+    datos_qr = f"ID:{codigo}\nProd:{nombre}\nPrecio:${precio:.2f}"
+    generar_qr(codigo, datos_qr)
+    print("✅ Producto registrado correctamente.")
 
 
 def editar_producto():
-    print("\n--- EDITAR ---")
-    codigo = input("Código a editar: ")
+    print("\n--- EDITAR PRODUCTO ---")
+    codigo = input("Código a editar: ").strip()
     if codigo not in inventario_db:
-        print("No existe.")
+        print("⚠️ No existe.")
         return
 
     prod = inventario_db[codigo]
-    print(f"Editando: {prod['nombre']} (Enter para mantener actual)")
+    print(f">> Editando: {prod['nombre']} (Enter para mantener valor actual)")
 
     nuevo_nom = input(f"Nombre [{prod['nombre']}]: ")
     if nuevo_nom:
@@ -158,145 +171,133 @@ def editar_producto():
     if nuevo_pre:
         prod["precio"] = float(nuevo_pre)
 
-    guardar_datos()
-    print("Actualizado correctamente.")
+    guardar_inventario()
+    print("✅ Actualizado correctamente.")
 
 
 def eliminar_producto():
-    codigo = input("\nCódigo a eliminar: ")
+    codigo = input("\nCódigo a eliminar: ").strip()
     if codigo in inventario_db:
         if input("¿Seguro? (SI/NO): ").upper() == "SI":
             del inventario_db[codigo]
-            guardar_datos()
-            print("Eliminado.")
+            guardar_inventario()
+            print("🗑️ Producto eliminado.")
     else:
-        print("No existe.")
+        print("⚠️ No existe.")
 
 
 def regenerar_qr_manualmente():
-    print("\n--- REGENERAR QRs ---")
-    print("1. Uno solo")
-    print("2. TODOS")
-    opcion = input("Opción: ")
+    print("\n--- REGENERAR QRS ---")
+    op = input("1. Uno solo\n2. Todos\nOpción: ")
 
-    if opcion == "1":
-        codigo = input("Código: ")
+    if op == "1":
+        codigo = input("Código: ").strip()
         if codigo in inventario_db:
             p = inventario_db[codigo]
-            texto = f"ID: {codigo}\nProducto: {p['nombre']}\nPrecio: ${p['precio']:.2f}"
-            generar_qr(codigo, texto)
-    elif opcion == "2":
+            info = f"ID:{codigo}\nProd:{p['nombre']}\nPrecio:${p['precio']:.2f}"
+            generar_qr(codigo, info)
+    elif op == "2":
         if input("¿Seguro? (SI/NO): ").upper() == "SI":
-            contador = 0
-            for codigo, p in inventario_db.items():
-                texto = (
-                    f"ID: {codigo}\nProducto: {p['nombre']}\nPrecio: ${p['precio']:.2f}"
-                )
-                generar_qr(codigo, texto)
-                contador += 1
-            print(f"Terminado. {contador} QRs generados.")
+            count = 0
+            for cod, p in inventario_db.items():
+                info = f"ID:{cod}\nProd:{p['nombre']}\nPrecio:${p['precio']:.2f}"
+                generar_qr(cod, info)
+                count += 1
+            print(f"✅ {count} QRs regenerados.")
 
 
+# ==========================================
+# 5. OPERACIONES (VENTAS Y MOVIMIENTOS)
+# ==========================================
 def registrar_movimiento():
-    codigo = input("\nCódigo producto: ")
+    """Entrada o Salida de stock por logística (no venta)."""
+    print("\n--- MOVIMIENTOS DE STOCK ---")
+    codigo = input("Código del producto: ").strip()
     if codigo not in inventario_db:
-        print("No existe.")
+        print("⚠️ No existe.")
         return
 
     tipo = input("Tipo (E=Entrada / S=Salida): ").upper()
     try:
         cant = int(input("Cantidad: "))
-    except:
+    except ValueError:
         return
+
+    stock_actual = inventario_db[codigo]["stock"]
 
     if tipo == "E":
         inventario_db[codigo]["stock"] += cant
-        print(f"Nuevo stock: {inventario_db[codigo]['stock']}")
+        print(f"✅ Nuevo stock: {inventario_db[codigo]['stock']}")
+        guardar_inventario()
     elif tipo == "S":
-        if cant <= inventario_db[codigo]["stock"]:
+        if cant <= stock_actual:
             inventario_db[codigo]["stock"] -= cant
-            print(f"Nuevo stock: {inventario_db[codigo]['stock']}")
+            print(f"✅ Nuevo stock: {inventario_db[codigo]['stock']}")
+            guardar_inventario()
         else:
-            print("Stock insuficiente.")
-    guardar_datos()
+            print("⚠️ Stock insuficiente.")
+    else:
+        print("⚠️ Tipo inválido.")
 
 
 def registrar_venta():
-    print("\n--- REGISTRAR VENTA (Modo Carrito ) ---")
+    """Sistema de Ventas con Carrito de Compras."""
+    print("\n--- 🛒 NUEVA VENTA (CARRITO) ---")
     carrito = []
     total_venta = 0.0
 
     while True:
-        # Mostramos lo que llevamos hasta ahora
-        print(
-            f"\n--- En carrito: {len(carrito)} items | Total parcial: ${total_venta:.2f} ---"
-        )
-        codigo = input("Código del producto (o 'F' para finalizar/cobrar): ").strip()
+        print(f"\n>> Items: {len(carrito)} | Total Parcial: ${total_venta:.2f}")
+        codigo = input("Código (o 'F' para finalizar): ").strip()
 
-        # 1. Salir del bucle si escribe 'F'
         if codigo.upper() == "F":
             break
 
-        # 2. Validar existencia
         if codigo not in inventario_db:
-            print("❌ Error: Producto no encontrado.")
+            print("❌ Producto no encontrado.")
             continue
 
-        producto = inventario_db[codigo]
+        prod = inventario_db[codigo]
         print(
-            f"   Seleccionado: {producto['nombre']} | Stock: {producto['stock']} | Precio: ${producto['precio']:.2f}"
+            f"   Seleccionado: {prod['nombre']} | Precio: ${prod['precio']:.2f} | Stock: {prod['stock']}"
         )
 
-        # 3. Pedir cantidad
         try:
-            cant_input = input("   Cantidad a vender: ")
-            if not cant_input.isdigit():
-                print("    Cantidad inválida, intenta de nuevo.")
+            cant = int(input("   Cantidad: "))
+            if cant <= 0:
+                print("   ⚠️ Cantidad inválida.")
                 continue
 
-            cantidad = int(cant_input)
-
-            if cantidad <= 0:
-                print("    La cantidad debe ser mayor a 0.")
-                continue
-
-            # Validar si hay suficiente stock (contando lo que ya llevas en el carrito si repites producto)
-            stock_actual = producto["stock"]
-            # Opcional: Podríamos restar lo que ya está en el carrito para ser más precisos,
-            # pero por ahora validamos contra el stock real.
-
-            if cantidad <= stock_actual:
-                subtotal = cantidad * producto["precio"]
+            # Validación simple de stock
+            # (Nota: Para mayor precisión se debería restar lo que ya está en carrito,
+            # pero para este nivel, validar contra el stock actual está bien)
+            if cant <= prod["stock"]:
+                subtotal = cant * prod["precio"]
 
                 # Agregar al carrito
                 item = {
                     "codigo": codigo,
-                    "nombre": producto["nombre"],
-                    "cantidad": cantidad,
-                    "precio": producto["precio"],
+                    "nombre": prod["nombre"],
+                    "cantidad": cant,
+                    "precio": prod["precio"],
                     "subtotal": subtotal,
                 }
                 carrito.append(item)
                 total_venta += subtotal
 
-                # Restamos "virtualmente" del stock local para que no venda lo que no tiene si agrega el mismo producto dos veces
-                producto["stock"] -= cantidad
-
-                print(
-                    f"    Agregado: {cantidad} x {producto['nombre']} (= ${subtotal:.2f})"
-                )
+                # Resta virtual temporal para no vender lo que no hay
+                prod["stock"] -= cant
+                print(f"   ✅ Agregado al carrito.")
             else:
-                print(f"   Stock insuficiente. Solo quedan {stock_actual}.")
+                print(f"   ❌ Stock insuficiente (Max: {prod['stock']}).")
 
         except ValueError:
-            print("   Error al ingresar cantidad.")
+            print("   ⚠️ Error al ingresar cantidad.")
 
-    # --- FINALIZAR VENTA ---
+    # --- FINALIZAR ---
     if not carrito:
-        print("\n Venta cancelada o carrito vacío.")
-        # Revertimos cambios de stock virtual si canceló (opcional, pero buena práctica)
-        # En este script simple, al no guardar, se revierte solo si cerramos,
-        # pero para ser exactos recargamos datos si fuera necesario.
+        print("\n🚫 Venta cancelada o carrito vacío.")
+        cargar_datos_sistema()  # Revertir restas virtuales
         return
 
     print("\n" + "=" * 40)
@@ -304,114 +305,147 @@ def registrar_venta():
     print("=" * 40)
     print(f"{'PROD':<15} {'CANT':<5} {'PRECIO':<10} {'SUBTOTAL'}")
     print("-" * 40)
-
-    for item in carrito:
+    for i in carrito:
         print(
-            f"{item['nombre']:<15} {item['cantidad']:<5} ${item['precio']:<9.2f} ${item['subtotal']:.2f}"
+            f"{i['nombre']:<15} {i['cantidad']:<5} ${i['precio']:<9.2f} ${i['subtotal']:.2f}"
         )
-
     print("-" * 40)
     print(f"TOTAL A PAGAR:      ${total_venta:.2f}")
     print("=" * 40)
 
-    confirmar = input("\n¿Confirmar venta y guardar cambios? (S/N): ")
-    if confirmar.upper() == "S":
-        guardar_datos()  # Aquí es donde realmente se guarda el nuevo stock en el JSON
-        print("¡Venta registrada exitosamente!")
+    if input("\n¿Confirmar venta? (S/N): ").upper() == "S":
+        # 1. Guardar cambios en inventario
+        guardar_inventario()
+
+        # 2. Registrar en historial
+        nueva_venta = {
+            "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total": total_venta,
+            "items": carrito,
+        }
+        ventas_db.append(nueva_venta)
+        guardar_historial_ventas()
+
+        print("✅ ¡Venta registrada exitosamente!")
     else:
-        print("Venta cancelada. El inventario no se modificó.")
-        # NOTA: Como restamos el stock en memoria durante el bucle para validar,
-        # si cancela aquí, deberíamos recargar los datos originales.
-        cargar_datos()
+        print("⚠️ Venta cancelada.")
+        cargar_datos_sistema()  # Revertir cambios
 
 
-def consultar_inventario(inventario_db):
+# ==========================================
+# 6. REPORTES Y CONSULTAS
+# ==========================================
+def consultar_inventario():
     print("\n" + "=" * 60)
-    print(f"{'--- INVENTARIO ---':^50}")
-    print("=" * 60)
-    # Encabezado con anchos fijos
-    print(f"{'CODIGO':<10} | {'NOMBRE':<30} | {'PRECIO':<5} | {'STOCK':<10}")
+    print(f"{'CÓDIGO':<10} | {'NOMBRE':<30} | {'PRECIO':<8} | {'STOCK'}")
     print("-" * 60)
 
-    for codigo, datos in inventario_db.items():
-        nombre = datos.get("nombre", "N/A")
-        stock = datos.get("stock", 0)
-        precio = datos.get("precio", 0)
-        # Imprimimos usando las variables que acabamos de extraer
-        print(f"{codigo:<10} | {nombre:<30} | {precio:<5} | {stock:<10}")
+    for cod, datos in inventario_db.items():
+        print(
+            f"{cod:<10} | {datos['nombre']:<30} | ${datos['precio']:<7.2f} | {datos['stock']}"
+        )
 
-    print("=" * 60 + "\n")
+    print("=" * 60)
+
+
+def consultar_historial_ventas():
+    print("\n--- HISTORIAL DE VENTAS ---")
+    if not ventas_db:
+        print("No hay registros.")
+        return
+
+    total_acumulado = 0.0
+    print(f"{'FECHA':<20} {'ITEMS':<10} {'TOTAL'}")
+    print("-" * 45)
+
+    for v in ventas_db:
+        cant_items = sum(item["cantidad"] for item in v["items"])
+        print(f"{v['fecha']:<20} {cant_items:<10} ${v['total']:.2f}")
+        total_acumulado += v["total"]
+
+    print("-" * 45)
+    print(f"💰 INGRESOS TOTALES: ${total_acumulado:.2f}")
+
+
+# ==========================================
+# 7. MENÚ PRINCIPAL Y LOGIN
+# ==========================================
+def login():
+    print(f"\n--- SISTEMA DE INVENTARIO V-1.5.3 ---")
+    intentos = 3
+    while intentos > 0:
+        user = input("Usuario: ")
+        pwd = input("Contraseña: ")
+
+        if user in usuarios_db and usuarios_db[user]["pass"] == pwd:
+            return usuarios_db[user]["rol"]
+
+        print("⛔ Credenciales incorrectas.")
+        intentos -= 1
+    sys.exit()
 
 
 def menu_principal():
-    cargar_datos()
+    cargar_datos_sistema()
     rol = login()
 
     while True:
-        # 1. Limpiamos la pantalla al inicio de cada ciclo
         limpiar_pantalla()
-
-        # 2. Imprimimos el encabezado bonito
         print("=" * 40)
-        print(f"   SISTEMA DE INVENTARIO V-1.5.2")
+        print(f"   SISTEMA HADES - TERMINAL (V-1.5.3)")
         print(f"   Usuario: {rol}")
         print("=" * 40)
 
-        print("\n--- MENÚ PRINCIPAL ---")
-        print("1. Registrar (Admin)")
-        print("2. Editar (Admin)")
-        print("3. Eliminar (Admin)")
-        print("4. Regenerar QRs (Admin)")
-        print("5. Movimientos (Entrada/Salida)")
-        print("6. Consultar")
-        print("7. Registrar Venta")
-        print("8. Salir")
+        print("\n[ ADMINISTRACIÓN ]")
+        print("1. Registrar Producto")
+        print("2. Editar Producto")
+        print("3. Eliminar Producto")
+        print("4. Regenerar QRs")
 
-        op = input("\n>> Seleccione una opción: ")
+        print("\n[ OPERACIÓN ]")
+        print("5. Movimientos Stock (Entrada/Salida)")
+        print("6. Consultar Inventario")
+        print("7. Registrar Venta (Caja) 🛒")
+        print("8. Historial de Ventas 📊")
 
-        # --- Lógica de opciones ---
-        if op == "1":
+        print("\n9. Salir")
+
+        op = input("\n>> Seleccione opción: ")
+
+        # --- Lógica de Admin ---
+        if op in ["1", "2", "3", "4"]:
             if rol == "Administrador":
-                registrar_producto()
+                if op == "1":
+                    registrar_producto()
+                elif op == "2":
+                    editar_producto()
+                elif op == "3":
+                    eliminar_producto()
+                elif op == "4":
+                    regenerar_qr_manualmente()
             else:
-                print("Acceso denegado.")
+                print("⛔ Acceso denegado (Requiere Admin).")
 
-        elif op == "2":
-            if rol == "Administrador":
-                editar_producto()
-            else:
-                print("Acceso denegado.")
-
-        elif op == "3":
-            if rol == "Administrador":
-                eliminar_producto()
-            else:
-                print("Acceso denegado.")
-
-        elif op == "4":
-            if rol == "Administrador":
-                regenerar_qr_manualmente()
-            else:
-                print("Acceso denegado.")
-
+        # --- Lógica General ---
         elif op == "5":
             registrar_movimiento()
         elif op == "6":
-            consultar_inventario(inventario_db)
+            consultar_inventario()
         elif op == "7":
             registrar_venta()
         elif op == "8":
+            consultar_historial_ventas()
+        elif op == "9":
             print("\n👋 ¡Hasta luego!")
             break
         else:
-            print("\n Opción no válida.")
+            print("⚠️ Opción no válida.")
 
-        # 3. PAUSA ESTRATÉGICA
-        # Esto evita que se borre el resultado inmediatamente.
-        # El usuario tiene que dar "Enter" para volver al menú limpio.
+        # Pausa antes de limpiar pantalla
         print("\n" + "-" * 40)
         input("Presione [ENTER] para volver al menú...")
 
 
+# PUNTO DE ENTRADA
 if __name__ == "__main__":
     menu_principal()
