@@ -8,6 +8,15 @@ from datetime import datetime
 ARCHIVO_DATOS = "inventario.json"
 CARPETA_QR = "codigos_qr"
 
+
+def limpiar_pantalla():
+    # Detecta el sistema operativo y ejecuta el comando de limpieza
+    if os.name == "nt":  # Windows
+        os.system("cls")
+    else:  # Linux / Mac
+        os.system("clear")
+
+
 # --- DATOS SEMILLA ---
 INVENTARIO_INICIAL = {
     "PAP-001": {
@@ -31,8 +40,8 @@ INVENTARIO_INICIAL = {
 }
 
 usuarios_db = {
-    "admin": {"pass": "admin123", "rol": "Administrador"},
-    "empleado": {"pass": "user123", "rol": "Empleado"},
+    "admin": {"pass": "123", "rol": "Administrador"},
+    "empleado": {"pass": "123", "rol": "Empleado"},
 }
 
 inventario_db = {}
@@ -85,7 +94,7 @@ def generar_qr(nombre_archivo, info_contenido):
 
 # --- 3. FUNCIONES DEL SISTEMA ---
 def login():
-    print("\n--- SISTEMA DE INVENTARIO V-1.4.2 ---")
+    print("\n--- SISTEMA DE INVENTARIO V-1.5.2 ---")
     intentos = 3
     while intentos > 0:
         usuario = input("Usuario: ")
@@ -212,48 +221,196 @@ def registrar_movimiento():
     guardar_datos()
 
 
-def consultar_inventario():
-    print("\n--- INVENTARIO ---")
-    print(f"{'CODIGO':<10} | {'NOMBRE':<20} | {'STOCK':<5}")
-    for c, d in inventario_db.items():
-        print(f"{c:<10} | {d['nombre']:<20} | {d['stock']:<5}")
+def registrar_venta():
+    print("\n--- REGISTRAR VENTA (Modo Carrito ) ---")
+    carrito = []
+    total_venta = 0.0
+
+    while True:
+        # Mostramos lo que llevamos hasta ahora
+        print(
+            f"\n--- En carrito: {len(carrito)} items | Total parcial: ${total_venta:.2f} ---"
+        )
+        codigo = input("Código del producto (o 'F' para finalizar/cobrar): ").strip()
+
+        # 1. Salir del bucle si escribe 'F'
+        if codigo.upper() == "F":
+            break
+
+        # 2. Validar existencia
+        if codigo not in inventario_db:
+            print("❌ Error: Producto no encontrado.")
+            continue
+
+        producto = inventario_db[codigo]
+        print(
+            f"   Seleccionado: {producto['nombre']} | Stock: {producto['stock']} | Precio: ${producto['precio']:.2f}"
+        )
+
+        # 3. Pedir cantidad
+        try:
+            cant_input = input("   Cantidad a vender: ")
+            if not cant_input.isdigit():
+                print("    Cantidad inválida, intenta de nuevo.")
+                continue
+
+            cantidad = int(cant_input)
+
+            if cantidad <= 0:
+                print("    La cantidad debe ser mayor a 0.")
+                continue
+
+            # Validar si hay suficiente stock (contando lo que ya llevas en el carrito si repites producto)
+            stock_actual = producto["stock"]
+            # Opcional: Podríamos restar lo que ya está en el carrito para ser más precisos,
+            # pero por ahora validamos contra el stock real.
+
+            if cantidad <= stock_actual:
+                subtotal = cantidad * producto["precio"]
+
+                # Agregar al carrito
+                item = {
+                    "codigo": codigo,
+                    "nombre": producto["nombre"],
+                    "cantidad": cantidad,
+                    "precio": producto["precio"],
+                    "subtotal": subtotal,
+                }
+                carrito.append(item)
+                total_venta += subtotal
+
+                # Restamos "virtualmente" del stock local para que no venda lo que no tiene si agrega el mismo producto dos veces
+                producto["stock"] -= cantidad
+
+                print(
+                    f"    Agregado: {cantidad} x {producto['nombre']} (= ${subtotal:.2f})"
+                )
+            else:
+                print(f"   Stock insuficiente. Solo quedan {stock_actual}.")
+
+        except ValueError:
+            print("   Error al ingresar cantidad.")
+
+    # --- FINALIZAR VENTA ---
+    if not carrito:
+        print("\n Venta cancelada o carrito vacío.")
+        # Revertimos cambios de stock virtual si canceló (opcional, pero buena práctica)
+        # En este script simple, al no guardar, se revierte solo si cerramos,
+        # pero para ser exactos recargamos datos si fuera necesario.
+        return
+
+    print("\n" + "=" * 40)
+    print("           TICKET DE VENTA")
+    print("=" * 40)
+    print(f"{'PROD':<15} {'CANT':<5} {'PRECIO':<10} {'SUBTOTAL'}")
+    print("-" * 40)
+
+    for item in carrito:
+        print(
+            f"{item['nombre']:<15} {item['cantidad']:<5} ${item['precio']:<9.2f} ${item['subtotal']:.2f}"
+        )
+
+    print("-" * 40)
+    print(f"TOTAL A PAGAR:      ${total_venta:.2f}")
+    print("=" * 40)
+
+    confirmar = input("\n¿Confirmar venta y guardar cambios? (S/N): ")
+    if confirmar.upper() == "S":
+        guardar_datos()  # Aquí es donde realmente se guarda el nuevo stock en el JSON
+        print("¡Venta registrada exitosamente!")
+    else:
+        print("Venta cancelada. El inventario no se modificó.")
+        # NOTA: Como restamos el stock en memoria durante el bucle para validar,
+        # si cancela aquí, deberíamos recargar los datos originales.
+        cargar_datos()
 
 
-# --- MENÚ PRINCIPAL ---
+def consultar_inventario(inventario_db):
+    print("\n" + "=" * 60)
+    print(f"{'--- INVENTARIO ---':^50}")
+    print("=" * 60)
+    # Encabezado con anchos fijos
+    print(f"{'CODIGO':<10} | {'NOMBRE':<30} | {'PRECIO':<5} | {'STOCK':<10}")
+    print("-" * 60)
+
+    for codigo, datos in inventario_db.items():
+        nombre = datos.get("nombre", "N/A")
+        stock = datos.get("stock", 0)
+        precio = datos.get("precio", 0)
+        # Imprimimos usando las variables que acabamos de extraer
+        print(f"{codigo:<10} | {nombre:<30} | {precio:<5} | {stock:<10}")
+
+    print("=" * 60 + "\n")
+
+
 def menu_principal():
     cargar_datos()
     rol = login()
-    print(f"\n---- Bienvenido (V-1.4.2) ---- {rol}")
 
     while True:
-        print("\n1. Registrar (Admin)")
+        # 1. Limpiamos la pantalla al inicio de cada ciclo
+        limpiar_pantalla()
+
+        # 2. Imprimimos el encabezado bonito
+        print("=" * 40)
+        print(f"   SISTEMA DE INVENTARIO V-1.5.2")
+        print(f"   Usuario: {rol}")
+        print("=" * 40)
+
+        print("\n--- MENÚ PRINCIPAL ---")
+        print("1. Registrar (Admin)")
         print("2. Editar (Admin)")
         print("3. Eliminar (Admin)")
         print("4. Regenerar QRs (Admin)")
         print("5. Movimientos (Entrada/Salida)")
         print("6. Consultar")
-        print("7. Salir")
+        print("7. Registrar Venta")
+        print("8. Salir")
 
-        op = input("Opción: ")
+        op = input("\n>> Seleccione una opción: ")
 
-        if op in ["1", "2", "3", "4"]:
+        # --- Lógica de opciones ---
+        if op == "1":
             if rol == "Administrador":
-                if op == "1":
-                    registrar_producto()
-                if op == "2":
-                    editar_producto()
-                if op == "3":
-                    eliminar_producto()
-                if op == "4":
-                    regenerar_qr_manualmente()
+                registrar_producto()
             else:
                 print("Acceso denegado.")
+
+        elif op == "2":
+            if rol == "Administrador":
+                editar_producto()
+            else:
+                print("Acceso denegado.")
+
+        elif op == "3":
+            if rol == "Administrador":
+                eliminar_producto()
+            else:
+                print("Acceso denegado.")
+
+        elif op == "4":
+            if rol == "Administrador":
+                regenerar_qr_manualmente()
+            else:
+                print("Acceso denegado.")
+
         elif op == "5":
             registrar_movimiento()
         elif op == "6":
-            consultar_inventario()
+            consultar_inventario(inventario_db)
         elif op == "7":
+            registrar_venta()
+        elif op == "8":
+            print("\n👋 ¡Hasta luego!")
             break
+        else:
+            print("\n Opción no válida.")
+
+        # 3. PAUSA ESTRATÉGICA
+        # Esto evita que se borre el resultado inmediatamente.
+        # El usuario tiene que dar "Enter" para volver al menú limpio.
+        print("\n" + "-" * 40)
+        input("Presione [ENTER] para volver al menú...")
 
 
 if __name__ == "__main__":
