@@ -226,23 +226,47 @@ def registrar_venta():
 def registrar_cliente_interactivo():
     print("\n--- 📝 REGISTRO DE NUEVO CLIENTE ---")
     cedula = input("Cédula o RUC: ").strip()
+
+    # Verificamos si ya existe usando la base de datos importada
     if cedula in datos.clientes_db:
         print("⚠️ Este cliente ya existe.")
         return
 
+    # 1. Primero pedimos TODOS los datos
     nombre = input("Nombre completo: ")
     telefono = input("Teléfono: ")
     correo = input("Correo electrónico: ")
+    direccion = input("Dirección de entrega: ")
+    notas = input("Notas adicionales (ej: Cliente VIP): ")
 
+    # 2. Ahora sí, creamos el diccionario con las variables que ya tienen valor
     datos.clientes_db[cedula] = {
         "nombre": nombre,
         "telefono": telefono,
         "correo": correo,
+        "direccion": direccion,  # Aquí usamos la variable 'direccion' que pedimos arriba
+        "notas": notas,  # Aquí usamos la variable 'notas' que pedimos arriba
         "puntos": 0,
+        "nivel": "Bronce",
         "fecha_registro": datetime.now().strftime("%Y-%m-%d"),
     }
+
     datos.guardar_clientes()
-    print(f"✅ ¡{nombre} ha sido registrado!")
+    print(f"✅ ¡{nombre} ha sido registrado con éxito!")
+
+
+def buscar_cliente_pro():
+    cedula = input("\nIngrese Cédula/RUC para auditoría: ").strip()
+    cliente = datos.clientes_db.get(cedula)
+    if cliente:
+        print(f"\n🌟 EXPEDIENTE DE CLIENTE 🌟")
+        print(f"---------------------------")
+        print(f"Nombre: {cliente['nombre']} [{cliente['nivel']}]")
+        print(f"Ubicación: {cliente['direccion']}")
+        print(f"Fidelidad: {cliente['puntos']} puntos")
+        print(f"Observaciones: {cliente['notas']}")
+    else:
+        print("❌ El expediente no existe en el Inframundo (Hades).")
 
 
 def listar_clientes():

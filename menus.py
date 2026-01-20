@@ -5,7 +5,7 @@ import operaciones as ops
 def mostrar_menu_principal(rol):
     limpiar_pantalla()
     print("=" * 40)
-    print(f"   SISTEMA HADES - TERMINAL (V-1.6.1)")
+    print(f"   SISTEMA HADES - TERMINAL (V-1.6.1.1)")
     print(f"   Usuario: {rol}")
     print("=" * 40)
 
