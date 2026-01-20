@@ -1,3 +1,4 @@
+ARCHIVO_CLIENTES = "clientes.json"
 ARCHIVO_DATOS = "inventario.json"
 ARCHIVO_VENTAS = "ventas.json"
 CARPETA_QR = "codigos_qr"

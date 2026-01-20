@@ -1,8 +1,9 @@
 import json
 import os
-from config import ARCHIVO_DATOS, ARCHIVO_VENTAS, INVENTARIO_INICIAL
+from config import ARCHIVO_DATOS, ARCHIVO_VENTAS, INVENTARIO_INICIAL, ARCHIVO_CLIENTES
 
 # Variables Globales de Datos
+clientes_db = {}
 inventario_db = {}
 ventas_db = []
 
@@ -33,6 +34,15 @@ def cargar_datos_sistema():
     else:
         ventas_db = []
 
+    if os.path.exists(ARCHIVO_CLIENTES):
+        try:
+            with open(ARCHIVO_CLIENTES, "r", encoding="utf-8") as f:
+                clientes_db = json.load(f)
+        except Exception:
+            clientes_db = {}
+    else:
+        clientes_db = {}
+
 
 def guardar_inventario():
     """Guarda los cambios del inventario en el JSON."""
@@ -50,3 +60,11 @@ def guardar_historial_ventas():
             json.dump(ventas_db, f, indent=4, ensure_ascii=False)
     except Exception as e:
         print(f"Error al guardar ventas: {e}")
+
+
+def guardar_clientes():
+    try:
+        with open(ARCHIVO_CLIENTES, "w", encoding="utf-8") as f:
+            json.dump(clientes_db, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error al guardar clientes: {e}")

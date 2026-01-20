@@ -6,6 +6,7 @@ from datetime import datetime
 import datos  # Para acceder a las variables globales
 from datos import guardar_inventario, guardar_historial_ventas, cargar_datos_sistema
 from utils import limpiar_pantalla, generar_qr
+from datos import clientes_db, guardar_clientes
 from config import usuarios_db
 
 
@@ -222,6 +223,40 @@ def registrar_venta():
 # ==========================================
 # REPORTES Y CONSULTAS
 # ==========================================
+def registrar_cliente_interactivo():
+    print("\n--- 📝 REGISTRO DE NUEVO CLIENTE ---")
+    cedula = input("Cédula o RUC: ").strip()
+    if cedula in datos.clientes_db:
+        print("⚠️ Este cliente ya existe.")
+        return
+
+    nombre = input("Nombre completo: ")
+    telefono = input("Teléfono: ")
+    correo = input("Correo electrónico: ")
+
+    datos.clientes_db[cedula] = {
+        "nombre": nombre,
+        "telefono": telefono,
+        "correo": correo,
+        "puntos": 0,
+        "fecha_registro": datetime.now().strftime("%Y-%m-%d"),
+    }
+    datos.guardar_clientes()
+    print(f"✅ ¡{nombre} ha sido registrado!")
+
+
+def listar_clientes():
+    print("\n" + "=" * 60)
+    print(f"{'CÉDULA/RUC':<15} | {'NOMBRE':<25} | {'TELÉFONO'}")
+    print("-" * 60)
+    if not datos.clientes_db:
+        print("   No hay clientes registrados.")
+    else:
+        for ced, info in datos.clientes_db.items():
+            print(f"{ced:<15} | {info['nombre']:<25} | {info.get('telefono', 'N/A')}")
+    print("=" * 60)
+
+
 def consultar_inventario():
     print("\n" + "=" * 60)
     print(f"{'CÓDIGO':<10} | {'NOMBRE':<30} | {'PRECIO':<8} | {'STOCK'}")
@@ -251,7 +286,7 @@ def consultar_historial_ventas():
 
 
 def login():
-    print(f"\n--- 🔒 ACCESO SEGURO HADES V-1.6.0 ---")
+    print(f"\n--- 🔒 ACCESO SEGURO HADES V-1.6.1 ---")
     intentos = 3
     while intentos > 0:
         user = input("Usuario: ")

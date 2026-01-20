@@ -1,32 +1,14 @@
 from datos import cargar_datos_sistema
-from utils import limpiar_pantalla
 import operaciones as ops
+import menus
 
 
-def menu_principal():
+def ejecutar_sistema():
     cargar_datos_sistema()
     rol = ops.login()
 
     while True:
-        limpiar_pantalla()
-        print("=" * 40)
-        print(f"   SISTEMA HADES - TERMINAL (V-1.6.0)")
-        print(f"   Usuario: {rol}")
-        print("=" * 40)
-
-        print("\n[ ADMINISTRACIÓN ]")
-        print("1. Registrar Producto")
-        print("2. Editar Producto")
-        print("3. Eliminar Producto")
-        print("4. Regenerar QRs")
-        print("\n[ OPERACIÓN ]")
-        print("5. Movimientos Stock (Entrada/Salida)")
-        print("6. Consultar Inventario")
-        print("7. Registrar Venta (Caja) 🛒")
-        print("8. Historial de Ventas 📊")
-        print("\n9. Salir")
-
-        op = input("\n>> Seleccione opción: ")
+        op = menus.mostrar_menu_principal(rol)
 
         if op in ["1", "2", "3", "4"]:
             if rol == "Administrador":
@@ -50,14 +32,16 @@ def menu_principal():
         elif op == "8":
             ops.consultar_historial_ventas()
         elif op == "9":
+            menus.menu_gestion_clientes()
+        elif op == "10":
             print("\n👋 ¡Hasta luego!")
             break
         else:
             print("⚠️ Opción no válida.")
 
         print("\n" + "-" * 40)
-        input("Presione [ENTER] para volver al menú...")
+        input("Presione [ENTER] para continuar...")
 
 
 if __name__ == "__main__":
-    menu_principal()
+    ejecutar_sistema()
