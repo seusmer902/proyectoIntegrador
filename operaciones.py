@@ -138,12 +138,13 @@ def registrar_movimiento():
 
 
 def registrar_venta():
-    print("\n--- 🛒 NUEVA VENTA (CAJA V-1.6.2) ---")
+    print("\n--- 🛒 NUEVA VENTA (CAJA V-1.6.2.1) ---")
     carrito = []
-    total_venta = 0.0
+    total_bruto = 0.0
 
+    # 1. Bucle de Venta (Igual que antes)
     while True:
-        print(f"\n>> Items: {len(carrito)} | Total Parcial: ${total_venta:.2f}")
+        print(f"\n>> Items: {len(carrito)} | Subtotal: ${total_bruto:.2f}")
         codigo = input("Código (o 'F' para pagar): ").strip()
 
         if codigo.upper() == "F":
@@ -154,9 +155,8 @@ def registrar_venta():
             continue
 
         prod = datos.inventario_db[codigo]
-        print(
-            f"   Seleccionado: {prod['nombre']} | Precio: ${prod['precio']:.2f} | Stock: {prod['stock']}"
-        )
+        # Mostramos stock y precio
+        print(f"   Seleccionado: {prod['nombre']} | ${prod['precio']:.2f}")
 
         try:
             cant = int(input("   Cantidad: "))
@@ -173,7 +173,7 @@ def registrar_venta():
                     "subtotal": subtotal,
                 }
                 carrito.append(item)
-                total_venta += subtotal
+                total_bruto += subtotal
                 prod["stock"] -= cant  # Resta virtual
                 print(f"   ✅ Agregado.")
             else:
@@ -183,83 +183,114 @@ def registrar_venta():
 
     if not carrito:
         print("\n🚫 Carrito vacío.")
-        cargar_datos_sistema()
+        datos.cargar_datos_sistema()
         return
 
     # 2. ASIGNACIÓN DE CLIENTE
     print("\n--- 👤 DATOS DE FACTURACIÓN ---")
     print("1. Consumidor Final")
-    print("2. Cliente Ya Registrado (Buscar por Cédula)")
-    print("3. Registrar Nuevo Cliente Ahora Mismo")
+    print("2. Cliente Ya Registrado")
+    print("3. Registrar Nuevo")
 
-    op_cliente = input("Seleccione opción (1-3): ").strip()
+    op_cliente = input("Seleccione: ").strip()
 
     cliente_data = None
-    cedula_cliente = "CONSUMIDOR_FINAL"
+    cedula_cliente = "9999999999"
     nombre_cliente = "Consumidor Final"
+    nivel_cliente = "Bronce"  # Por defecto
 
     if op_cliente == "2":
-        ced = input("Ingrese Cédula/RUC: ").strip()
+        ced = input("Cédula/RUC: ").strip()
         if ced in datos.clientes_db:
             cliente_data = datos.clientes_db[ced]
             nombre_cliente = cliente_data["nombre"]
             cedula_cliente = ced
-            print(
-                f"✅ Cliente detectado: {nombre_cliente} (Nivel: {cliente_data.get('nivel', 'Bronce')})"
-            )
+            nivel_cliente = cliente_data.get("nivel", "Bronce")
+            print(f"✅ Hola {nombre_cliente}! Eres nivel {nivel_cliente}")
         else:
-            print("⚠️ Cliente no encontrado. Se usará Consumidor Final.")
+            print("⚠️ No encontrado. Se usará Consumidor Final.")
 
     elif op_cliente == "3":
         registrar_cliente_interactivo()
-        # Recuperamos el último cliente registrado
+        # Recuperamos al último
         if datos.clientes_db:
             ced_nueva = list(datos.clientes_db.keys())[-1]
             cliente_data = datos.clientes_db[ced_nueva]
             nombre_cliente = cliente_data["nombre"]
             cedula_cliente = ced_nueva
-            print(f"✅ Nuevo cliente asignado a la factura: {nombre_cliente}")
+            nivel_cliente = "Bronce"
+            print(f"✅ Cliente nuevo asignado: {nombre_cliente}")
 
-    # 3. CONFIRMACIÓN Y PUNTOS
+    # 3. CÁLCULO DE DESCUENTOS (¡LO NUEVO!)
+    porcentaje_descuento = 0
+    if nivel_cliente == "Plata":
+        porcentaje_descuento = 0.05  # 5%
+    elif nivel_cliente == "Oro":
+        porcentaje_descuento = 0.10  # 10%
+
+    monto_descuento = total_bruto * porcentaje_descuento
+    total_neto = total_bruto - monto_descuento
+
     print("\n" + "=" * 40)
-    print(f"TOTAL A PAGAR:      ${total_venta:.2f}")
+    print(f"SUBTOTAL:           ${total_bruto:.2f}")
+    if porcentaje_descuento > 0:
+        print(f"DESCUENTO ({nivel_cliente}): -${monto_descuento:.2f}")
+    print(f"TOTAL A PAGAR:      ${total_neto:.2f}")
     print("=" * 40)
 
-    if input("\n¿Confirmar pago y generar factura? (S/N): ").upper() == "S":
-        guardar_inventario()
+    if input("\n¿Confirmar venta? (S/N): ").upper() == "S":
+        datos.guardar_inventario()
 
+        # Lógica de Puntos (Basada en el total neto pagado)
         puntos_ganados = 0
         if cliente_data:
-            puntos_ganados = int(total_venta)
-            cliente_data["puntos"] += puntos_ganados
-            # Subir Nivel
-            if cliente_data["puntos"] > 500:
-                cliente_data["nivel"] = "Oro"
-            elif cliente_data["puntos"] > 100:
-                cliente_data["nivel"] = "Plata"
-            guardar_clientes()
-            print(f"🎁 ¡El cliente ganó {puntos_ganados} Puntos Hades!")
-            print(f"🌟 Nuevo Nivel: {cliente_data['nivel']}")
+            puntos_ganados = int(total_neto)  # Gana puntos por lo que pagó realmente
+            cliente_data["puntos"] = cliente_data.get("puntos", 0) + puntos_ganados
 
+            # Recalcular Nivel
+            pts = cliente_data["puntos"]
+            nuevo_nivel = "Bronce"
+            if pts > 500:
+                nuevo_nivel = "Oro"
+            elif pts > 100:
+                nuevo_nivel = "Plata"
+
+            if nuevo_nivel != nivel_cliente:
+                print(f"🎉 ¡El cliente subió de nivel a {nuevo_nivel}!")
+
+            cliente_data["nivel"] = nuevo_nivel
+            datos.guardar_clientes()
+
+        # Generar Factura (Pasamos todos los datos nuevos)
         generar_archivo_factura(
-            carrito, total_venta, nombre_cliente, cedula_cliente, puntos_ganados
+            carrito,
+            total_bruto,
+            monto_descuento,
+            total_neto,
+            nombre_cliente,
+            cedula_cliente,
+            puntos_ganados,
+            nivel_cliente,
         )
 
+        # Historial
         nueva_venta = {
             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "total": total_venta,
+            "total": total_neto,
             "cliente": nombre_cliente,
             "items": carrito,
         }
         datos.ventas_db.append(nueva_venta)
-        guardar_historial_ventas()
-        print("✅ ¡Venta finalizada con éxito!")
+        datos.guardar_historial_ventas()
+        print("✅ Venta finalizada.")
     else:
-        print("⚠️ Venta cancelada.")
-        cargar_datos_sistema()
+        print("⚠️ Cancelado.")
+        datos.cargar_datos_sistema()
 
 
-def generar_archivo_factura(items, total, nombre, cedula, puntos):
+def generar_archivo_factura(
+    items, subtotal, descuento, total, nombre, cedula, puntos, nivel
+):
     if not os.path.exists(CARPETA_FACTURAS):
         os.makedirs(CARPETA_FACTURAS)
 
@@ -267,23 +298,39 @@ def generar_archivo_factura(items, total, nombre, cedula, puntos):
     nombre_archivo = f"{CARPETA_FACTURAS}/FACT_{timestamp}_{cedula}.txt"
 
     with open(nombre_archivo, "w", encoding="utf-8") as f:
-        f.write("========================================\n")
-        f.write("          TIENDA HADES - TICKET\n")
-        f.write("========================================\n")
+        f.write("=" * 40 + "\n")
+        f.write(f"{'TIENDA HADES - TICKET':^40}\n")  # Centrado
+        f.write("=" * 40 + "\n")
         f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
         f.write(f"Cliente: {nombre}\n")
         f.write(f"RUC/CI:  {cedula}\n")
-        f.write("----------------------------------------\n")
-        f.write(f"{'CANT':<5} {'PRODUCTO':<20} {'SUBTOTAL'}\n")
-        f.write("----------------------------------------\n")
+        if nivel != "Bronce":
+            f.write(f"Nivel:   {nivel} (Desc. Aplicado)\n")
+        f.write("-" * 40 + "\n")
+
+        # ENCABEZADOS DE COLUMNAS FIJAS
+        # {Texto : <Espacio} alinea a la izquierda
+        # {Texto : >Espacio} alinea a la derecha
+        f.write(f"{'CANT':<5} {'PRODUCTO':<20} {'SUBTOTAL':>10}\n")
+        f.write("-" * 40 + "\n")
+
         for i in items:
-            f.write(f"{i['cantidad']:<5} {i['nombre']:<20} ${i['subtotal']:.2f}\n")
-        f.write("----------------------------------------\n")
-        f.write(f"TOTAL A PAGAR: $ {total:.2f}\n")
-        f.write("========================================\n")
+            # TRUCO DE ALINEACIÓN:
+            # i['nombre'][:19] -> Corta el nombre si tiene más de 19 letras
+            # :<20 -> Rellena con espacios hasta llegar a 20 caracteres
+            nombre_fmt = f"{i['nombre'][:19]:<20}"
+            f.write(f"{i['cantidad']:<5} {nombre_fmt} ${i['subtotal']:>9.2f}\n")
+
+        f.write("-" * 40 + "\n")
+        f.write(f"SUBTOTAL:          ${subtotal:>10.2f}\n")
+        if descuento > 0:
+            f.write(f"DESCUENTO:        -${descuento:>10.2f}\n")
+        f.write(f"TOTAL A PAGAR:     ${total:>10.2f}\n")
+        f.write("=" * 40 + "\n")
+
         if puntos > 0:
-            f.write(f"¡Has ganado {puntos} Puntos Hades!\n")
-            f.write("Gracias por tu preferencia.\n")
+            f.write(f"\n[+] Ganaste {puntos} Puntos Hades\n")
+            f.write(f"    Gracias por tu compra.\n")
 
     print(f"📄 Factura generada: {nombre_archivo}")
 

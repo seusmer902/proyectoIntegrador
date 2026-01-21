@@ -54,5 +54,33 @@
                 "subtotal": 1.2
             }
         ]
+    },
+    {
+        "fecha": "2026-01-20 19:29:29",
+        "total": 2.85,
+        "cliente": "Manuel Carvajal",
+        "items": [
+            {
+                "codigo": "PAP-001",
+                "nombre": "Cuaderno Universitario 100h",
+                "cantidad": 2,
+                "precio": 1.5,
+                "subtotal": 3.0
+            }
+        ]
+    },
+    {
+        "fecha": "2026-01-20 19:32:48",
+        "total": 3.0,
+        "cliente": "Consumidor Final",
+        "items": [
+            {
+                "codigo": "PAP-001",
+                "nombre": "Cuaderno Universitario 100h",
+                "cantidad": 2,
+                "precio": 1.5,
+                "subtotal": 3.0
+            }
+        ]
     }
 ]
