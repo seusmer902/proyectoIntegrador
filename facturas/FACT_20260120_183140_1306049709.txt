@@ -1,0 +1,21 @@
+========================================
+          TIENDA HADES - TICKET
+========================================
+Fecha: 20/01/2026 18:31
+Cliente: Manuel Carvajal
+RUC/CI:  1316299187
+----------------------------------------
+CANT  PRODUCTO             SUBTOTAL
+----------------------------------------
+1     Marcador Negro       $0.75
+1     Marcador Azul        $0.75
+1     Escuadra             $0.50
+1     Resma Papel Bond A4  $4.50
+2     Lapis                $1.00
+1     Cuaderno Universitario 100h $1.50
+2     Esfero Bic Rojo      $1.20
+----------------------------------------
+TOTAL A PAGAR: $ 10.20
+========================================
+¡Has ganado 10 Puntos Hades!
+Gracias por tu preferencia.

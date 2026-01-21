@@ -9,8 +9,9 @@ ventas_db = []
 
 
 def cargar_datos_sistema():
-    """Carga tanto el inventario como el historial de ventas al iniciar."""
-    global inventario_db, ventas_db
+    """Carga tanto el inventario, ventas y clientes al iniciar."""
+    # AQUI ESTABA EL ERROR: Faltaba agregar clientes_db a global
+    global inventario_db, ventas_db, clientes_db
 
     # 1. Cargar Inventario
     if os.path.exists(ARCHIVO_DATOS):
@@ -34,6 +35,7 @@ def cargar_datos_sistema():
     else:
         ventas_db = []
 
+    # 3. Cargar Clientes
     if os.path.exists(ARCHIVO_CLIENTES):
         try:
             with open(ARCHIVO_CLIENTES, "r", encoding="utf-8") as f:
@@ -63,6 +65,7 @@ def guardar_historial_ventas():
 
 
 def guardar_clientes():
+    """Guarda los clientes en el JSON."""
     try:
         with open(ARCHIVO_CLIENTES, "w", encoding="utf-8") as f:
             json.dump(clientes_db, f, indent=4, ensure_ascii=False)

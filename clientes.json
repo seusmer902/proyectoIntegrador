@@ -3,7 +3,10 @@
         "nombre": "Manuel Carvajal",
         "telefono": "0990364030",
         "correo": "carvajalmanuel902@gmail.com",
+        "direccion": "Carcelen",
+        "notas": "Yo mismo",
         "puntos": 0,
+        "nivel": "Plata",
         "fecha_registro": "2026-01-20"
     }
 }

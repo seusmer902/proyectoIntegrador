@@ -1,17 +1,22 @@
 import hashlib
 import getpass
 import sys
+import os  # Importante para las carpetas
 from datetime import datetime
 
-import datos  # Para acceder a las variables globales
-from datos import guardar_inventario, guardar_historial_ventas, cargar_datos_sistema
+import datos  # Acceso a variables globales
+from datos import (
+    guardar_inventario,
+    guardar_historial_ventas,
+    cargar_datos_sistema,
+    guardar_clientes,
+)
 from utils import limpiar_pantalla, generar_qr
-from datos import clientes_db, guardar_clientes
-from config import usuarios_db
+from config import usuarios_db, CARPETA_FACTURAS
 
 
 # ==========================================
-# ADMINISTRACIÓN DE PRODUCTOS (CRUD)
+# ADMINISTRACIÓN DE PRODUCTOS
 # ==========================================
 def registrar_producto():
     print("\n--- REGISTRO DE PRODUCTO ---")
@@ -83,7 +88,6 @@ def eliminar_producto():
 def regenerar_qr_manualmente():
     print("\n--- REGENERAR QRS ---")
     op = input("1. Uno solo\n2. Todos\nOpción: ")
-
     if op == "1":
         codigo = input("Código: ").strip()
         if codigo in datos.inventario_db:
@@ -134,13 +138,13 @@ def registrar_movimiento():
 
 
 def registrar_venta():
-    print("\n--- 🛒 NUEVA VENTA (CARRITO) ---")
+    print("\n--- 🛒 NUEVA VENTA (CAJA V-1.6.2) ---")
     carrito = []
     total_venta = 0.0
 
     while True:
         print(f"\n>> Items: {len(carrito)} | Total Parcial: ${total_venta:.2f}")
-        codigo = input("Código (o 'F' para finalizar): ").strip()
+        codigo = input("Código (o 'F' para pagar): ").strip()
 
         if codigo.upper() == "F":
             break
@@ -157,12 +161,10 @@ def registrar_venta():
         try:
             cant = int(input("   Cantidad: "))
             if cant <= 0:
-                print("   ⚠️ Cantidad inválida.")
                 continue
 
             if cant <= prod["stock"]:
                 subtotal = cant * prod["precio"]
-
                 item = {
                     "codigo": codigo,
                     "nombre": prod["nombre"],
@@ -172,52 +174,118 @@ def registrar_venta():
                 }
                 carrito.append(item)
                 total_venta += subtotal
-
-                # Resta virtual temporal
-                prod["stock"] -= cant
-                print(f"   ✅ Agregado al carrito.")
+                prod["stock"] -= cant  # Resta virtual
+                print(f"   ✅ Agregado.")
             else:
-                print(f"   ❌ Stock insuficiente (Max: {prod['stock']}).")
-
+                print(f"   ❌ Stock insuficiente.")
         except ValueError:
-            print("   ⚠️ Error al ingresar cantidad.")
+            print("   ⚠️ Error de cantidad.")
 
-    # --- FINALIZAR ---
     if not carrito:
-        print("\n🚫 Venta cancelada o carrito vacío.")
-        cargar_datos_sistema()  # Revertir restas virtuales
+        print("\n🚫 Carrito vacío.")
+        cargar_datos_sistema()
         return
 
+    # 2. ASIGNACIÓN DE CLIENTE
+    print("\n--- 👤 DATOS DE FACTURACIÓN ---")
+    print("1. Consumidor Final")
+    print("2. Cliente Ya Registrado (Buscar por Cédula)")
+    print("3. Registrar Nuevo Cliente Ahora Mismo")
+
+    op_cliente = input("Seleccione opción (1-3): ").strip()
+
+    cliente_data = None
+    cedula_cliente = "CONSUMIDOR_FINAL"
+    nombre_cliente = "Consumidor Final"
+
+    if op_cliente == "2":
+        ced = input("Ingrese Cédula/RUC: ").strip()
+        if ced in datos.clientes_db:
+            cliente_data = datos.clientes_db[ced]
+            nombre_cliente = cliente_data["nombre"]
+            cedula_cliente = ced
+            print(
+                f"✅ Cliente detectado: {nombre_cliente} (Nivel: {cliente_data.get('nivel', 'Bronce')})"
+            )
+        else:
+            print("⚠️ Cliente no encontrado. Se usará Consumidor Final.")
+
+    elif op_cliente == "3":
+        registrar_cliente_interactivo()
+        # Recuperamos el último cliente registrado
+        if datos.clientes_db:
+            ced_nueva = list(datos.clientes_db.keys())[-1]
+            cliente_data = datos.clientes_db[ced_nueva]
+            nombre_cliente = cliente_data["nombre"]
+            cedula_cliente = ced_nueva
+            print(f"✅ Nuevo cliente asignado a la factura: {nombre_cliente}")
+
+    # 3. CONFIRMACIÓN Y PUNTOS
     print("\n" + "=" * 40)
-    print("           TICKET DE VENTA")
-    print("=" * 40)
-    print(f"{'PROD':<15} {'CANT':<5} {'PRECIO':<10} {'SUBTOTAL'}")
-    print("-" * 40)
-    for i in carrito:
-        print(
-            f"{i['nombre']:<15} {i['cantidad']:<5} ${i['precio']:<9.2f} ${i['subtotal']:.2f}"
-        )
-    print("-" * 40)
     print(f"TOTAL A PAGAR:      ${total_venta:.2f}")
     print("=" * 40)
 
-    if input("\n¿Confirmar venta? (S/N): ").upper() == "S":
-        # 1. Guardar cambios en inventario
+    if input("\n¿Confirmar pago y generar factura? (S/N): ").upper() == "S":
         guardar_inventario()
 
-        # 2. Registrar en historial
+        puntos_ganados = 0
+        if cliente_data:
+            puntos_ganados = int(total_venta)
+            cliente_data["puntos"] += puntos_ganados
+            # Subir Nivel
+            if cliente_data["puntos"] > 500:
+                cliente_data["nivel"] = "Oro"
+            elif cliente_data["puntos"] > 100:
+                cliente_data["nivel"] = "Plata"
+            guardar_clientes()
+            print(f"🎁 ¡El cliente ganó {puntos_ganados} Puntos Hades!")
+            print(f"🌟 Nuevo Nivel: {cliente_data['nivel']}")
+
+        generar_archivo_factura(
+            carrito, total_venta, nombre_cliente, cedula_cliente, puntos_ganados
+        )
+
         nueva_venta = {
             "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "total": total_venta,
+            "cliente": nombre_cliente,
             "items": carrito,
         }
         datos.ventas_db.append(nueva_venta)
         guardar_historial_ventas()
-
-        print("✅ ¡Venta registrada exitosamente!")
+        print("✅ ¡Venta finalizada con éxito!")
     else:
         print("⚠️ Venta cancelada.")
-        cargar_datos_sistema()  # Revertir cambios
+        cargar_datos_sistema()
+
+
+def generar_archivo_factura(items, total, nombre, cedula, puntos):
+    if not os.path.exists(CARPETA_FACTURAS):
+        os.makedirs(CARPETA_FACTURAS)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    nombre_archivo = f"{CARPETA_FACTURAS}/FACT_{timestamp}_{cedula}.txt"
+
+    with open(nombre_archivo, "w", encoding="utf-8") as f:
+        f.write("========================================\n")
+        f.write("          TIENDA HADES - TICKET\n")
+        f.write("========================================\n")
+        f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
+        f.write(f"Cliente: {nombre}\n")
+        f.write(f"RUC/CI:  {cedula}\n")
+        f.write("----------------------------------------\n")
+        f.write(f"{'CANT':<5} {'PRODUCTO':<20} {'SUBTOTAL'}\n")
+        f.write("----------------------------------------\n")
+        for i in items:
+            f.write(f"{i['cantidad']:<5} {i['nombre']:<20} ${i['subtotal']:.2f}\n")
+        f.write("----------------------------------------\n")
+        f.write(f"TOTAL A PAGAR: $ {total:.2f}\n")
+        f.write("========================================\n")
+        if puntos > 0:
+            f.write(f"¡Has ganado {puntos} Puntos Hades!\n")
+            f.write("Gracias por tu preferencia.\n")
+
+    print(f"📄 Factura generada: {nombre_archivo}")
 
 
 # ==========================================
@@ -226,45 +294,55 @@ def registrar_venta():
 def registrar_cliente_interactivo():
     print("\n--- 📝 REGISTRO DE NUEVO CLIENTE ---")
     cedula = input("Cédula o RUC: ").strip()
-
-    # Verificamos si ya existe usando la base de datos importada
     if cedula in datos.clientes_db:
         print("⚠️ Este cliente ya existe.")
         return
 
-    # 1. Primero pedimos TODOS los datos
     nombre = input("Nombre completo: ")
     telefono = input("Teléfono: ")
     correo = input("Correo electrónico: ")
     direccion = input("Dirección de entrega: ")
-    notas = input("Notas adicionales (ej: Cliente VIP): ")
+    notas = input("Notas adicionales: ")
 
-    # 2. Ahora sí, creamos el diccionario con las variables que ya tienen valor
     datos.clientes_db[cedula] = {
         "nombre": nombre,
         "telefono": telefono,
         "correo": correo,
-        "direccion": direccion,  # Aquí usamos la variable 'direccion' que pedimos arriba
-        "notas": notas,  # Aquí usamos la variable 'notas' que pedimos arriba
+        "direccion": direccion,
+        "notas": notas,
         "puntos": 0,
         "nivel": "Bronce",
         "fecha_registro": datetime.now().strftime("%Y-%m-%d"),
     }
-
-    datos.guardar_clientes()
-    print(f"✅ ¡{nombre} ha sido registrado con éxito!")
+    guardar_clientes()
+    print(f"✅ ¡{nombre} registrado con éxito!")
 
 
 def buscar_cliente_pro():
     cedula = input("\nIngrese Cédula/RUC para auditoría: ").strip()
+
+    # Usamos .get() para evitar errores si la cédula no existe
     cliente = datos.clientes_db.get(cedula)
+
     if cliente:
         print(f"\n🌟 EXPEDIENTE DE CLIENTE 🌟")
         print(f"---------------------------")
-        print(f"Nombre: {cliente['nombre']} [{cliente['nivel']}]")
-        print(f"Ubicación: {cliente['direccion']}")
-        print(f"Fidelidad: {cliente['puntos']} puntos")
-        print(f"Observaciones: {cliente['notas']}")
+        # El truco: .get('clave', 'valor_por_defecto')
+        # Si 'nivel' no existe, usará "Bronce" en vez de tronar
+        nivel = cliente.get("nivel", "Bronce")
+        nombre = cliente.get("nombre", "Desconocido")
+
+        print(f"Nombre: {nombre} [{nivel}]")
+
+        # Hacemos lo mismo con los otros campos nuevos
+        direccion = cliente.get("direccion", "Sin dirección registrada")
+        notas = cliente.get("notas", "Sin observaciones")
+        puntos = cliente.get("puntos", 0)
+
+        print(f"Ubicación: {direccion}")
+        print(f"Fidelidad: {puntos} puntos")
+        print(f"Observaciones: {notas}")
+        print(f"---------------------------")
     else:
         print("❌ El expediente no existe en el Inframundo (Hades).")
 
@@ -310,7 +388,7 @@ def consultar_historial_ventas():
 
 
 def login():
-    print(f"\n--- 🔒 ACCESO SEGURO HADES V-1.6.1 ---")
+    print(f"\n--- 🔒 ACCESO SEGURO HADES V-1.6.3 ---")
     intentos = 3
     while intentos > 0:
         user = input("Usuario: ")

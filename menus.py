@@ -5,7 +5,7 @@ import operaciones as ops
 def mostrar_menu_principal(rol):
     limpiar_pantalla()
     print("=" * 40)
-    print(f"   SISTEMA HADES - TERMINAL (V-1.6.1.1)")
+    print(f"   SISTEMA HADES - TERMINAL (V-1.6.2)")
     print(f"   Usuario: {rol}")
     print("=" * 40)
 
@@ -40,7 +40,7 @@ def menu_gestion_clientes():
         elif op == "2":
             ops.listar_clientes()
         elif op == "3":
-            ops.buscar_cliente()
+            ops.buscar_cliente_pro()
         elif op == "4":
             break
 

@@ -1,6 +1,7 @@
 ARCHIVO_CLIENTES = "clientes.json"
 ARCHIVO_DATOS = "inventario.json"
 ARCHIVO_VENTAS = "ventas.json"
+CARPETA_FACTURAS = "facturas"
 CARPETA_QR = "codigos_qr"
 
 # Datos Semilla (Solo si el archivo no existe)

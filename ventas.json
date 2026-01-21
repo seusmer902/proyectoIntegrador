@@ -1,49 +1,57 @@
 [
     {
-        "fecha": "2026-01-08 10:34:30",
-        "total": 9.25,
+        "fecha": "2026-01-20 18:31:40",
+        "total": 10.2,
+        "cliente": "Manuel Carvajal",
         "items": [
-            {
-                "codigo": "PAP-001",
-                "nombre": "Cuaderno Universitario 100h",
-                "cantidad": 4,
-                "precio": 1.5,
-                "subtotal": 6.0
-            },
-            {
-                "codigo": "PAP-006",
-                "nombre": "Borrador de Queso",
-                "cantidad": 1,
-                "precio": 0.5,
-                "subtotal": 0.5
-            },
-            {
-                "codigo": "PAP-008",
-                "nombre": "Lápiz Mongul HB",
-                "cantidad": 2,
-                "precio": 0.4,
-                "subtotal": 0.8
-            },
-            {
-                "codigo": "PAP-010",
-                "nombre": "Esfero Azul Bic",
-                "cantidad": 1,
-                "precio": 0.6,
-                "subtotal": 0.6
-            },
-            {
-                "codigo": "PAP-011",
-                "nombre": "Esfero Rojo Bic",
-                "cantidad": 1,
-                "precio": 0.6,
-                "subtotal": 0.6
-            },
             {
                 "codigo": "PAP-012",
                 "nombre": "Marcador Negro",
                 "cantidad": 1,
                 "precio": 0.75,
                 "subtotal": 0.75
+            },
+            {
+                "codigo": "PAP-013",
+                "nombre": "Marcador Azul",
+                "cantidad": 1,
+                "precio": 0.75,
+                "subtotal": 0.75
+            },
+            {
+                "codigo": "PAP-015",
+                "nombre": "Escuadra",
+                "cantidad": 1,
+                "precio": 0.5,
+                "subtotal": 0.5
+            },
+            {
+                "codigo": "PAP-002",
+                "nombre": "Resma Papel Bond A4",
+                "cantidad": 1,
+                "precio": 4.5,
+                "subtotal": 4.5
+            },
+            {
+                "codigo": "PAP-007",
+                "nombre": "Lapis",
+                "cantidad": 2,
+                "precio": 0.5,
+                "subtotal": 1.0
+            },
+            {
+                "codigo": "PAP-001",
+                "nombre": "Cuaderno Universitario 100h",
+                "cantidad": 1,
+                "precio": 1.5,
+                "subtotal": 1.5
+            },
+            {
+                "codigo": "PAP-010",
+                "nombre": "Esfero Bic Rojo",
+                "cantidad": 2,
+                "precio": 0.6,
+                "subtotal": 1.2
             }
         ]
     }
