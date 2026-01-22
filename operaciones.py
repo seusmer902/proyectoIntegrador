@@ -12,7 +12,7 @@ from datos import (
     guardar_clientes,
 )
 from utils import limpiar_pantalla, generar_qr
-from config import usuarios_db, CARPETA_FACTURAS
+from config import CARPETA_FACTURAS
 
 
 # ==========================================
@@ -138,7 +138,7 @@ def registrar_movimiento():
 
 
 def registrar_venta():
-    print("\n--- 🛒 NUEVA VENTA (CAJA V-1.6.2.1) ---")
+    print("\n--- 🛒 NUEVA VENTA (CAJA V-1.6.3) ---")
     carrito = []
     total_bruto = 0.0
 
@@ -434,6 +434,55 @@ def consultar_historial_ventas():
     print(f"💰 INGRESOS TOTALES: ${total_acumulado:.2f}")
 
 
+def registrar_nuevo_usuario():
+    print("\n--- 👤 NUEVO USUARIO DEL SISTEMA ---")
+    nuevo_user = input("Nombre de usuario: ").strip()
+    if nuevo_user in datos.usuarios_db:
+        print("⚠️ Ese usuario ya existe.")
+        return
+
+    pwd1 = getpass.getpass("Contraseña: ")
+    pwd2 = getpass.getpass("Confirmar contraseña: ")
+
+    if pwd1 != pwd2:
+        print("❌ Las contraseñas no coinciden.")
+        return
+
+    print("Roles disponibles: 1. Administrador | 2. Empleado")
+    rol_op = input("Seleccione Rol (1/2): ")
+    rol = "Administrador" if rol_op == "1" else "Empleado"
+
+    # Encriptamos antes de guardar
+    pass_hash = hashlib.sha256(pwd1.encode()).hexdigest()
+
+    datos.usuarios_db[nuevo_user] = {"pass_hash": pass_hash, "rol": rol}
+    datos.guardar_usuarios()
+    print(f"✅ Usuario {nuevo_user} creado con rol {rol}.")
+
+
+def listar_usuarios():
+    print("\n--- LISTA DE PERSONAL ---")
+    for u, info in datos.usuarios_db.items():
+        print(f"User: {u:<15} | Rol: {info['rol']}")
+    print("-" * 30)
+
+
+def eliminar_usuario():
+    listar_usuarios()
+    user = input("\nUsuario a eliminar: ").strip()
+    if user == "admin":
+        print("⛔ No puedes eliminar al admin principal.")
+        return
+
+    if user in datos.usuarios_db:
+        if input(f"¿Seguro que deseas eliminar a {user}? (S/N): ").upper() == "S":
+            del datos.usuarios_db[user]
+            datos.guardar_usuarios()
+            print("🗑️ Usuario eliminado.")
+    else:
+        print("⚠️ Usuario no encontrado.")
+
+
 def login():
     print(f"\n--- 🔒 ACCESO SEGURO HADES V-1.6.3 ---")
     intentos = 3
@@ -441,10 +490,11 @@ def login():
         user = input("Usuario: ")
         pwd_input = getpass.getpass("Contraseña: ")
 
-        if user in usuarios_db:
+        # AHORA BUSCAMOS EN datos.usuarios_db (NO EN config)
+        if user in datos.usuarios_db:
             hash_calculado = hashlib.sha256(pwd_input.encode()).hexdigest()
-            if hash_calculado == usuarios_db[user]["pass_hash"]:
-                return usuarios_db[user]["rol"]
+            if hash_calculado == datos.usuarios_db[user]["pass_hash"]:
+                return datos.usuarios_db[user]["rol"]
 
         print(f"⛔ Credenciales incorrectas.")
         intentos -= 1

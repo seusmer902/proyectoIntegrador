@@ -5,7 +5,7 @@ import operaciones as ops
 def mostrar_menu_principal(rol):
     limpiar_pantalla()
     print("=" * 40)
-    print(f"   SISTEMA HADES - TERMINAL (V-1.6.2)")
+    print(f"   SISTEMA HADES - TERMINAL (V-1.6.3)")
     print(f"   Usuario: {rol}")
     print("=" * 40)
 
@@ -14,13 +14,15 @@ def mostrar_menu_principal(rol):
     print("2. Editar Producto")
     print("3. Eliminar Producto")
     print("4. Regenerar QRs")
+    print("5. Gestión de Personal (Usuarios) 👮")  # <--- Aquí estaba el error
+
     print("\n[ OPERACIÓN ]")
-    print("5. Movimientos Stock (Entrada/Salida)")
-    print("6. Consultar Inventario")
-    print("7. Registrar Venta (Caja) 🛒")
-    print("8. Historial de Ventas 📊")
-    print("9. Gestión de Clientes 👥")
-    print("\n10. Salir")
+    print("6. Movimientos Stock (Entrada/Salida)")
+    print("7. Consultar Inventario")
+    print("8. Registrar Venta (Caja) 🛒")
+    print("9. Historial de Ventas 📊")
+    print("10. Gestión de Clientes 👥")
+    print("\n11. Salir")
 
     return input("\n>> Seleccione opción: ")
 
@@ -31,7 +33,7 @@ def menu_gestion_clientes():
         print("--- 👥 GESTIÓN DE CLIENTES ---")
         print("1. Registrar Cliente")
         print("2. Listar Clientes")
-        print("3. Buscar Cliente (Detalles)")  # Opción creativa
+        print("3. Buscar Cliente (Detalles)")
         print("4. Volver")
         op = input("\n>> Seleccione: ")
 

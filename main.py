@@ -10,7 +10,8 @@ def ejecutar_sistema():
     while True:
         op = menus.mostrar_menu_principal(rol)
 
-        if op in ["1", "2", "3", "4"]:
+        # BLOQUE DE ADMINISTRACIÓN (1-5)
+        if op in ["1", "2", "3", "4", "5"]:
             if rol == "Administrador":
                 if op == "1":
                     ops.registrar_producto()
@@ -20,20 +21,35 @@ def ejecutar_sistema():
                     ops.eliminar_producto()
                 elif op == "4":
                     ops.regenerar_qr_manualmente()
+                elif op == "5":
+                    # Submenú rápido de usuarios
+                    print("\n--- GESTIÓN DE PERSONAL ---")
+                    print("1. Crear Usuario")
+                    print("2. Listar Personal")
+                    print("3. Eliminar Usuario")
+                    print("4. Cancelar")
+                    sub = input("Opción: ")
+                    if sub == "1":
+                        ops.registrar_nuevo_usuario()
+                    elif sub == "2":
+                        ops.listar_usuarios()
+                    elif sub == "3":
+                        ops.eliminar_usuario()
             else:
                 print("⛔ Acceso denegado (Requiere Admin).")
 
-        elif op == "5":
-            ops.registrar_movimiento()
+        # BLOQUE DE OPERACIONES (6-11)
         elif op == "6":
-            ops.consultar_inventario()
+            ops.registrar_movimiento()
         elif op == "7":
-            ops.registrar_venta()
+            ops.consultar_inventario()
         elif op == "8":
-            ops.consultar_historial_ventas()
+            ops.registrar_venta()
         elif op == "9":
-            menus.menu_gestion_clientes()
+            ops.consultar_historial_ventas()
         elif op == "10":
+            menus.menu_gestion_clientes()
+        elif op == "11":
             print("\n👋 ¡Hasta luego!")
             break
         else:
