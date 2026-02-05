@@ -3,13 +3,13 @@
         "nombre": "Cuaderno Universitario 100h",
         "categoria": "Cuadernos",
         "precio": 1.5,
-        "stock": 43
+        "stock": 39
     },
     "PAP-002": {
         "nombre": "Resma Papel Bond A4",
         "categoria": "Papel",
         "precio": 4.5,
-        "stock": 21
+        "stock": 20
     },
     "PAP-003": {
         "nombre": "Carpeta Plastica Roja",

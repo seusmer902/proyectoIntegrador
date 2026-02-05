@@ -1,27 +1,30 @@
+# datos.py
 import json
 import os
 import hashlib
 import random
 import string
+from datetime import datetime
 
-# Importamos configuración desde el mismo paquete
+# Importamos las nuevas rutas
 from .config import (
     ARCHIVO_DATOS,
-    ARCHIVO_VENTAS,
     INVENTARIO_INICIAL,
     ARCHIVO_CLIENTES,
     ARCHIVO_USUARIOS,
     ARCHIVO_PENDIENTES,
+    DIR_VENTAS_DIARIAS,  # <--- Importante
 )
 
-# --- BASES DE DATOS EN MEMORIA ---
+# Bases de datos en memoria
 inventario_db = {}
 ventas_db = []
 clientes_db = {}
 usuarios_db = {}
 pendientes_db = {}
+nombre_archivo_ventas_hoy = ""  # Variable para saber cuál es el json de hoy
 
-# --- ROLES Y PERMISOS (¡AQUÍ ESTABA EL ERROR!) ---
+# Roles y Permisos (Igual que antes)
 PERMISOS_DISPONIBLES = {
     "VENTAS": "Acceso a Caja y Facturación",
     "STOCK": "Movimientos de Entrada/Salida",
@@ -29,7 +32,7 @@ PERMISOS_DISPONIBLES = {
     "CLIENTES": "Registrar y Ver Clientes",
     "REPORTES": "Ver Historial de Ventas y Dinero",
     "ADMIN": "Gestión Total (Usuarios y Config)",
-    "COMPRA_SELF": "Permiso para comprar como cliente",  # Nuevo
+    "COMPRA_SELF": "Permiso para comprar como cliente",
 }
 
 ROLES_PLANTILLA = {
@@ -37,21 +40,19 @@ ROLES_PLANTILLA = {
     "Cajero": ["VENTAS", "CLIENTES"],
     "Bodeguero": ["STOCK", "PROD"],
     "Supervisor": ["VENTAS", "STOCK", "CLIENTES", "REPORTES"],
-    "Cliente": ["COMPRA_SELF"],  # ROL NUEVO PARA INVITADOS
+    "Cliente": ["COMPRA_SELF"],
 }
 
 
-# --- UTILIDADES ---
 def generar_codigo_recuperacion():
     chars = string.ascii_uppercase + string.digits
     return "".join(random.choice(chars) for _ in range(6))
 
 
-# --- CARGA DE DATOS ---
 def cargar_datos_sistema():
-    global inventario_db, ventas_db, clientes_db, usuarios_db, pendientes_db
+    global inventario_db, ventas_db, clientes_db, usuarios_db, pendientes_db, nombre_archivo_ventas_hoy
 
-    # 1. Inventario
+    # 1. Cargar Inventario
     if os.path.exists(ARCHIVO_DATOS):
         try:
             with open(ARCHIVO_DATOS, "r", encoding="utf-8") as f:
@@ -65,18 +66,31 @@ def cargar_datos_sistema():
         inventario_db.update(INVENTARIO_INICIAL)
         guardar_inventario()
 
-    # 2. Ventas
-    if os.path.exists(ARCHIVO_VENTAS):
+    # ==========================================================
+    # 2. CARGAR VENTAS DEL DÍA (NUEVA LÓGICA)
+    # ==========================================================
+    # Crear carpeta de ventas diarias si no existe
+    if not os.path.exists(DIR_VENTAS_DIARIAS):
+        os.makedirs(DIR_VENTAS_DIARIAS)
+
+    # Definimos el nombre del archivo según la fecha de HOY
+    hoy_str = datetime.now().strftime("%Y-%m-%d")
+    nombre_archivo_ventas_hoy = os.path.join(
+        DIR_VENTAS_DIARIAS, f"ventas_{hoy_str}.json"
+    )
+
+    if os.path.exists(nombre_archivo_ventas_hoy):
         try:
-            with open(ARCHIVO_VENTAS, "r", encoding="utf-8") as f:
+            with open(nombre_archivo_ventas_hoy, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 ventas_db[:] = data
         except:
             ventas_db[:] = []
     else:
+        # Si es un día nuevo, empezamos con lista vacía
         ventas_db[:] = []
 
-    # 3. Clientes
+    # 3. Cargar Clientes
     if os.path.exists(ARCHIVO_CLIENTES):
         try:
             with open(ARCHIVO_CLIENTES, "r", encoding="utf-8") as f:
@@ -88,15 +102,14 @@ def cargar_datos_sistema():
     else:
         clientes_db.clear()
 
-    # 4. Usuarios
+    # 4. Cargar Usuarios
     if os.path.exists(ARCHIVO_USUARIOS):
         try:
             with open(ARCHIVO_USUARIOS, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 usuarios_db.clear()
                 usuarios_db.update(data)
-
-                # Migración de campos nuevos
+                # Migración rápida
                 cambios = False
                 for u, val in usuarios_db.items():
                     if "bloqueado" not in val:
@@ -110,7 +123,7 @@ def cargar_datos_sistema():
         except:
             usuarios_db.clear()
     else:
-        # Admin por defecto (Pass: 123)
+        # Admin por defecto (123)
         pass_hash = hashlib.sha256("123".encode()).hexdigest()
         usuarios_db.clear()
         usuarios_db.update(
@@ -126,7 +139,7 @@ def cargar_datos_sistema():
         )
         guardar_usuarios()
 
-    # 5. Pendientes
+    # 5. Cargar Pendientes
     if os.path.exists(ARCHIVO_PENDIENTES):
         try:
             with open(ARCHIVO_PENDIENTES, "r", encoding="utf-8") as f:
@@ -139,14 +152,22 @@ def cargar_datos_sistema():
         pendientes_db.clear()
 
 
-# --- GUARDADO ---
+# --- FUNCIONES DE GUARDADO ---
 def guardar_inventario():
     with open(ARCHIVO_DATOS, "w", encoding="utf-8") as f:
         json.dump(inventario_db, f, indent=4)
 
 
 def guardar_historial_ventas():
-    with open(ARCHIVO_VENTAS, "w", encoding="utf-8") as f:
+    # Guarda en el archivo específico del día de hoy
+    global nombre_archivo_ventas_hoy
+    if not nombre_archivo_ventas_hoy:  # Seguridad por si acaso
+        hoy_str = datetime.now().strftime("%Y-%m-%d")
+        nombre_archivo_ventas_hoy = os.path.join(
+            DIR_VENTAS_DIARIAS, f"ventas_{hoy_str}.json"
+        )
+
+    with open(nombre_archivo_ventas_hoy, "w", encoding="utf-8") as f:
         json.dump(ventas_db, f, indent=4)
 
 

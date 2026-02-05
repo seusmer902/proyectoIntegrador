@@ -25,6 +25,7 @@ from core.datos import (
 )
 from core.utils import limpiar_pantalla, generar_qr
 from core.config import CARPETA_FACTURAS
+from core.config import CARPETA_FACTURAS, CARPETA_REPORTES
 import cli.menus as menus
 
 # ==========================================
@@ -467,14 +468,45 @@ def editar_datos_usuario(me):
 def generar_archivo_factura(
     items, subtotal, descuento, total, nombre, cedula, puntos, nivel
 ):
+    # 1. Asegurar que la carpeta exista
     if not os.path.exists(CARPETA_FACTURAS):
-        os.makedirs(CARPETA_FACTURAS)
-    name = f"{CARPETA_FACTURAS}/FACT_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
-    with open(name, "w", encoding="utf-8") as f:
-        f.write(f"HADES POS\nCliente: {nombre}\nTotal: ${total}\nPuntos: {puntos}\n")
-        for i in items:
-            f.write(f"{i['nombre']} x{i['cantidad']} ${i['subtotal']}\n")
-    print(f"📄 Factura: {name}")
+        try:
+            os.makedirs(CARPETA_FACTURAS)
+        except OSError as e:
+            print(f"❌ Error creando carpeta facturas: {e}")
+            return
+
+    # 2. Nombre del archivo
+    nombre_archivo = f"FACT_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+    ruta_completa = os.path.join(CARPETA_FACTURAS, nombre_archivo)
+
+    # 3. Guardar
+    try:
+        with open(ruta_completa, "w", encoding="utf-8") as f:
+            f.write("=" * 40 + "\n")
+            f.write(f"TIENDA HADES - TICKET DE VENTA\n")
+            f.write("=" * 40 + "\n")
+            f.write(f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}\n")
+            f.write(f"Cliente: {nombre}\n")
+            f.write(f"RUC/CI:  {cedula}\n")
+            f.write(f"Nivel:   {nivel}\n")
+            f.write("-" * 40 + "\n")
+            f.write(f"{'CANT':<5} {'PRODUCTO':<20} {'SUBTOTAL':>10}\n")
+            f.write("-" * 40 + "\n")
+            for i in items:
+                f.write(
+                    f"{i['cantidad']:<5} {i['nombre'][:19]:<20} ${i['subtotal']:>9.2f}\n"
+                )
+            f.write("-" * 40 + "\n")
+            f.write(f"SUBTOTAL:     ${subtotal:>10.2f}\n")
+            if descuento > 0:
+                f.write(f"DESCUENTO:   -${descuento:>10.2f}\n")
+            f.write(f"TOTAL A PAGAR: ${total:>10.2f}\n")
+            f.write("=" * 40 + "\n")
+            f.write(f"Ganaste {puntos} Puntos Hades!\nGracias por tu preferencia.\n")
+        print(f"📄 Factura guardada en: assets/facturas/{nombre_archivo}")
+    except Exception as e:
+        print(f"❌ Error al guardar factura: {e}")
 
 
 def registrar_nuevo_usuario():
@@ -876,25 +908,42 @@ def generar_archivo_factura(
 def realizar_cierre_caja():
     hoy = datetime.now().strftime("%Y-%m-%d")
     print(f"\n--- 📉 CIERRE DE CAJA ({hoy}) ---")
+
+    # Calculamos totales con ventas_db (que ya solo tiene las de hoy gracias a datos.py)
     total_dia = 0.0
-    ventas_hoy = []
+    ventas_hoy_lista = []
 
     for v in ventas_db:
+        # Aunque ventas_db ya es del día, doble check por seguridad
         if v["fecha"].startswith(hoy):
             total_dia += v["total"]
-            ventas_hoy.append(v)
+            ventas_hoy_lista.append(v)
 
-    print(f"💰 Total Vendido: ${total_dia:.2f}")
-    print(f"🧾 Transacciones: {len(ventas_hoy)}")
+    print(f"💰 Total Vendido Hoy: ${total_dia:.2f}")
+    print(f"🧾 Transacciones: {len(ventas_hoy_lista)}")
 
-    if len(ventas_hoy) > 0 and input("¿Guardar reporte? S/N: ").upper() == "S":
-        with open(f"REPORTE_CIERRE_{hoy}.txt", "w") as f:
-            f.write(
-                f"CIERRE {hoy}\nTotal: ${total_dia:.2f}\nVentas: {len(ventas_hoy)}\n"
-            )
-            for v in ventas_hoy:
-                f.write(f"{v['fecha'][11:16]} | ${v['total']}\n")
-        print("✅ Reporte guardado.")
+    if (
+        len(ventas_hoy_lista) > 0
+        and input("¿Generar reporte TXT? S/N: ").upper() == "S"
+    ):
+        # 1. Crear carpeta reportes si no existe
+        if not os.path.exists(CARPETA_REPORTES):
+            os.makedirs(CARPETA_REPORTES)
+
+        nombre_rep = f"REPORTE_CIERRE_{hoy}.txt"
+        ruta_rep = os.path.join(CARPETA_REPORTES, nombre_rep)
+
+        with open(ruta_rep, "w", encoding="utf-8") as f:
+            f.write(f"=== REPORTE DE CIERRE: {hoy} ===\n\n")
+            f.write(f"TOTAL VENDIDO: ${total_dia:.2f}\n")
+            f.write(f"TRANSACCIONES: {len(ventas_hoy_lista)}\n")
+            f.write("-" * 40 + "\n")
+            f.write("DETALLE:\n")
+            for v in ventas_hoy_lista:
+                hora = v["fecha"].split(" ")[1][:5]  # Extraer hora HH:MM
+                f.write(f"[{hora}] {v['cliente']} -> ${v['total']:.2f}\n")
+
+        print(f"✅ Reporte guardado en: assets/reportes/{nombre_rep}")
 
 
 def consultar_historial_ventas():
