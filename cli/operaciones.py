@@ -1,3 +1,4 @@
+# operaciones.py
 import hashlib
 import getpass
 import os

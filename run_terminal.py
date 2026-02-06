@@ -1,5 +1,5 @@
 # run_terminal.py
-from core import datos
+from core import datos, scanner
 import cli.operaciones as ops
 import cli.menus as menus
 
@@ -18,6 +18,16 @@ def verificar(permiso):
 
 def ejecutar_sistema():
     global USUARIO_ACTUAL
+
+    print("Iniciando sistema...")
+    # Esta línea es la que hace que salga el mensaje del estetoscopio 🩺
+    estado_sistema = scanner.correr_scanner_hades()
+
+    if not estado_sistema:
+        resp = input("⚠️ Se encontraron errores. ¿Continuar bajo su riesgo? (S/N): ")
+        if resp.upper() != "S":
+            print("Apagando sistema...")
+            return
 
     # 1. Cargamos la base de datos (Inventario, Usuarios, etc.)
     datos.cargar_datos_sistema()

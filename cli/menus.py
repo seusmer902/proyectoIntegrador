@@ -1,3 +1,4 @@
+# menus.py
 from core.utils import limpiar_pantalla
 from core.datos import PERMISOS_DISPONIBLES, ROLES_PLANTILLA
 
@@ -53,7 +54,7 @@ def menu_checkout_cliente():
 def mostrar_menu_principal(usuario, rol):
     limpiar_pantalla()
     print("=" * 50)
-    print(f" SISTEMA HADES - TERMINAL (V-1.7.2)")
+    print(f" SISTEMA HADES - TERMINAL (V-1.7.3)")
     print(f" Usuario: {usuario} | Rol: {rol}")
     print("=" * 50)
     print("\n[ ADMINISTRACIÓN ]")

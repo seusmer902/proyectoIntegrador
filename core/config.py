@@ -16,15 +16,19 @@ DIR_VENTAS_DIARIAS = os.path.join(DB_DIR, "ventas_diarias")
 # 2. Donde se guardan los archivos generados (Salidas)
 CARPETA_QR = os.path.join(ASSETS_DIR, "codigos_qr")
 CARPETA_FACTURAS = os.path.join(ASSETS_DIR, "facturas")
-CARPETA_REPORTES = os.path.join(ASSETS_DIR, "reportes")  # <--- NUEVA PARA CIERRES
+CARPETA_REPORTES = os.path.join(ASSETS_DIR, "reportes")
 
 # --- ARCHIVOS JSON FIJOS ---
 ARCHIVO_DATOS = os.path.join(DB_DIR, "inventario.json")
 ARCHIVO_CLIENTES = os.path.join(DB_DIR, "clientes.json")
-ARCHIVO_USUARIOS = os.path.join(DB_DIR, "usuarios.json")
 ARCHIVO_PENDIENTES = os.path.join(DB_DIR, "usuarios_pendientes.json")
 
-# NOTA: ARCHIVO_VENTAS ya no es fijo, se calcula en datos.py según el día.
+# --- NUEVOS ARCHIVOS DE LA V-1.7.3 (¡ESTO FALTABA!) ---
+ARCHIVO_EMPLEADOS = os.path.join(DB_DIR, "empleados.json")
+ARCHIVO_CLIENTES_LOGIN = os.path.join(DB_DIR, "clientes_login.json")
+ARCHIVO_USUARIOS_LEGACY = os.path.join(
+    DB_DIR, "usuarios.json"
+)  # <--- El culpable del error
 
 # --- DATOS SEMILLA ---
 INVENTARIO_INICIAL = {

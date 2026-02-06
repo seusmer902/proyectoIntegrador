@@ -1,4 +1,4 @@
-# datos.py
+# core/datos.py (V-1.7.3 CORREGIDO)
 import json
 import os
 import hashlib
@@ -11,20 +11,26 @@ from .config import (
     ARCHIVO_DATOS,
     INVENTARIO_INICIAL,
     ARCHIVO_CLIENTES,
-    ARCHIVO_USUARIOS,
+    ARCHIVO_EMPLEADOS,
+    ARCHIVO_CLIENTES_LOGIN,
+    ARCHIVO_USUARIOS_LEGACY,
     ARCHIVO_PENDIENTES,
-    DIR_VENTAS_DIARIAS,  # <--- Importante
+    DIR_VENTAS_DIARIAS,
 )
 
 # Bases de datos en memoria
 inventario_db = {}
 ventas_db = []
 clientes_db = {}
-usuarios_db = {}
 pendientes_db = {}
-nombre_archivo_ventas_hoy = ""  # Variable para saber cuál es el json de hoy
+nombre_archivo_ventas_hoy = ""
 
-# Roles y Permisos (Igual que antes)
+# --- DOBLE ALMACÉN ---
+empleados_db = {}  # Solo Staff
+clientes_login_db = {}  # Solo Clientes con cuenta
+usuarios_db = {}  # Fusión en RAM (Staff + Clientes) para el Login
+
+# Roles y Permisos
 PERMISOS_DISPONIBLES = {
     "VENTAS": "Acceso a Caja y Facturación",
     "STOCK": "Movimientos de Entrada/Salida",
@@ -50,15 +56,15 @@ def generar_codigo_recuperacion():
 
 
 def cargar_datos_sistema():
-    global inventario_db, ventas_db, clientes_db, usuarios_db, pendientes_db, nombre_archivo_ventas_hoy
+    global inventario_db, ventas_db, clientes_db, usuarios_db, pendientes_db
+    global empleados_db, clientes_login_db, nombre_archivo_ventas_hoy
 
-    # 1. Cargar Inventario
+    # 1. INVENTARIO
     if os.path.exists(ARCHIVO_DATOS):
         try:
             with open(ARCHIVO_DATOS, "r", encoding="utf-8") as f:
-                data = json.load(f)
                 inventario_db.clear()
-                inventario_db.update(data)
+                inventario_db.update(json.load(f))
         except:
             inventario_db.clear()
     else:
@@ -66,14 +72,9 @@ def cargar_datos_sistema():
         inventario_db.update(INVENTARIO_INICIAL)
         guardar_inventario()
 
-    # ==========================================================
-    # 2. CARGAR VENTAS DEL DÍA (NUEVA LÓGICA)
-    # ==========================================================
-    # Crear carpeta de ventas diarias si no existe
+    # 2. VENTAS DEL DÍA
     if not os.path.exists(DIR_VENTAS_DIARIAS):
         os.makedirs(DIR_VENTAS_DIARIAS)
-
-    # Definimos el nombre del archivo según la fecha de HOY
     hoy_str = datetime.now().strftime("%Y-%m-%d")
     nombre_archivo_ventas_hoy = os.path.join(
         DIR_VENTAS_DIARIAS, f"ventas_{hoy_str}.json"
@@ -82,70 +83,87 @@ def cargar_datos_sistema():
     if os.path.exists(nombre_archivo_ventas_hoy):
         try:
             with open(nombre_archivo_ventas_hoy, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                ventas_db[:] = data
+                ventas_db[:] = json.load(f)
         except:
             ventas_db[:] = []
     else:
-        # Si es un día nuevo, empezamos con lista vacía
         ventas_db[:] = []
 
-    # 3. Cargar Clientes
+    # 3. CLIENTES (Datos Facturación)
     if os.path.exists(ARCHIVO_CLIENTES):
         try:
             with open(ARCHIVO_CLIENTES, "r", encoding="utf-8") as f:
-                data = json.load(f)
                 clientes_db.clear()
-                clientes_db.update(data)
+                clientes_db.update(json.load(f))
         except:
             clientes_db.clear()
     else:
         clientes_db.clear()
 
-    # 4. Cargar Usuarios
-    if os.path.exists(ARCHIVO_USUARIOS):
-        try:
-            with open(ARCHIVO_USUARIOS, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                usuarios_db.clear()
-                usuarios_db.update(data)
-                # Migración rápida
-                cambios = False
-                for u, val in usuarios_db.items():
-                    if "bloqueado" not in val:
-                        val["bloqueado"] = False
-                        cambios = True
-                    if "codigo_recuperacion" not in val:
-                        val["codigo_recuperacion"] = "ADMIN1"
-                        cambios = True
-                if cambios:
-                    guardar_usuarios()
-        except:
-            usuarios_db.clear()
-    else:
-        # Admin por defecto (123)
-        pass_hash = hashlib.sha256("123".encode()).hexdigest()
-        usuarios_db.clear()
-        usuarios_db.update(
-            {
-                "admin": {
-                    "pass_hash": pass_hash,
-                    "rol": "Administrador",
-                    "permisos": ROLES_PLANTILLA["Administrador"],
-                    "bloqueado": False,
-                    "codigo_recuperacion": "ADMIN1",
-                }
-            }
-        )
-        guardar_usuarios()
+    # ==========================================================
+    # 4. SISTEMA DE USUARIOS (MIGRACIÓN Y CARGA DOBLE)
+    # ==========================================================
+    empleados_db.clear()
+    clientes_login_db.clear()
 
-    # 5. Cargar Pendientes
+    # A) MIGRACIÓN LEGACY
+    if os.path.exists(ARCHIVO_USUARIOS_LEGACY):
+        print("⚠️  MIGRANDO SISTEMA DE USUARIOS A V-1.7.3...")
+        try:
+            with open(ARCHIVO_USUARIOS_LEGACY, "r", encoding="utf-8") as f:
+                legacy_data = json.load(f)
+
+            for u, data in legacy_data.items():
+                if data.get("rol") == "Cliente":
+                    clientes_login_db[u] = data
+                else:
+                    empleados_db[u] = data
+
+            guardar_empleados()
+            guardar_clientes_login()
+            os.rename(ARCHIVO_USUARIOS_LEGACY, ARCHIVO_USUARIOS_LEGACY + ".bak")
+            print("✅ Migración completada.")
+        except Exception as e:
+            print(f"❌ Error migrando: {e}")
+
+    # B) Cargar Empleados
+    if os.path.exists(ARCHIVO_EMPLEADOS):
+        try:
+            with open(ARCHIVO_EMPLEADOS, "r", encoding="utf-8") as f:
+                empleados_db.update(json.load(f))
+        except:
+            pass
+    else:
+        if not empleados_db and not os.path.exists(ARCHIVO_USUARIOS_LEGACY + ".bak"):
+            pass_hash = hashlib.sha256("123".encode()).hexdigest()
+            empleados_db["admin"] = {
+                "pass_hash": pass_hash,
+                "rol": "Administrador",
+                "permisos": ROLES_PLANTILLA["Administrador"],
+                "bloqueado": False,
+                "codigo_recuperacion": "ADMIN1",
+            }
+            guardar_empleados()
+
+    # C) Cargar Clientes Login
+    if os.path.exists(ARCHIVO_CLIENTES_LOGIN):
+        try:
+            with open(ARCHIVO_CLIENTES_LOGIN, "r", encoding="utf-8") as f:
+                clientes_login_db.update(json.load(f))
+        except:
+            pass
+
+    # D) FUSIÓN EN RAM
+    usuarios_db.clear()
+    usuarios_db.update(empleados_db)
+    usuarios_db.update(clientes_login_db)
+
+    # 5. PENDIENTES
     if os.path.exists(ARCHIVO_PENDIENTES):
         try:
             with open(ARCHIVO_PENDIENTES, "r", encoding="utf-8") as f:
-                data = json.load(f)
                 pendientes_db.clear()
-                pendientes_db.update(data)
+                pendientes_db.update(json.load(f))
         except:
             pendientes_db.clear()
     else:
@@ -159,16 +177,9 @@ def guardar_inventario():
 
 
 def guardar_historial_ventas():
-    # Guarda en el archivo específico del día de hoy
-    global nombre_archivo_ventas_hoy
-    if not nombre_archivo_ventas_hoy:  # Seguridad por si acaso
-        hoy_str = datetime.now().strftime("%Y-%m-%d")
-        nombre_archivo_ventas_hoy = os.path.join(
-            DIR_VENTAS_DIARIAS, f"ventas_{hoy_str}.json"
-        )
-
-    with open(nombre_archivo_ventas_hoy, "w", encoding="utf-8") as f:
-        json.dump(ventas_db, f, indent=4)
+    if nombre_archivo_ventas_hoy:
+        with open(nombre_archivo_ventas_hoy, "w", encoding="utf-8") as f:
+            json.dump(ventas_db, f, indent=4)
 
 
 def guardar_clientes():
@@ -176,9 +187,14 @@ def guardar_clientes():
         json.dump(clientes_db, f, indent=4)
 
 
-def guardar_usuarios():
-    with open(ARCHIVO_USUARIOS, "w", encoding="utf-8") as f:
-        json.dump(usuarios_db, f, indent=4)
+def guardar_empleados():
+    with open(ARCHIVO_EMPLEADOS, "w", encoding="utf-8") as f:
+        json.dump(empleados_db, f, indent=4)
+
+
+def guardar_clientes_login():
+    with open(ARCHIVO_CLIENTES_LOGIN, "w", encoding="utf-8") as f:
+        json.dump(clientes_login_db, f, indent=4)
 
 
 def guardar_pendientes():
@@ -186,18 +202,50 @@ def guardar_pendientes():
         json.dump(pendientes_db, f, indent=4)
 
 
+# ========================================================
+# 🔧 PUENTE DE COMPATIBILIDAD (¡ESTO ARREGLA EL ERROR!)
+# ========================================================
+def guardar_usuarios():
+    """
+    Esta función existe para que 'operaciones.py' no falle.
+    Guarda TODO (Empleados y Clientes) para asegurar que los cambios se reflejen.
+    """
+    guardar_empleados()
+    guardar_clientes_login()
+
+
 # --- ACCIONES ---
 def resetear_password(usuario, nueva_pass):
-    if usuario in usuarios_db:
-        usuarios_db[usuario]["pass_hash"] = hashlib.sha256(
-            nueva_pass.encode()
-        ).hexdigest()
-        guardar_usuarios()
+    h = hashlib.sha256(nueva_pass.encode()).hexdigest()
+    if usuario in empleados_db:
+        empleados_db[usuario]["pass_hash"] = h
+        guardar_empleados()
+        return True
+    elif usuario in clientes_login_db:
+        clientes_login_db[usuario]["pass_hash"] = h
+        guardar_clientes_login()
         return True
     return False
 
 
 def bloquear_usuario(usuario):
+    if usuario in empleados_db:
+        empleados_db[usuario]["bloqueado"] = True
+        guardar_empleados()
+    elif usuario in clientes_login_db:
+        clientes_login_db[usuario]["bloqueado"] = True
+        guardar_clientes_login()
     if usuario in usuarios_db:
         usuarios_db[usuario]["bloqueado"] = True
-        guardar_usuarios()
+
+
+def rehabilitar_usuario(usuario):
+    if usuario in empleados_db:
+        empleados_db[usuario]["bloqueado"] = False
+        guardar_empleados()
+        return True
+    elif usuario in clientes_login_db:
+        clientes_login_db[usuario]["bloqueado"] = False
+        guardar_clientes_login()
+        return True
+    return False

@@ -1,0 +1,11 @@
+{
+    "Manuel": {
+        "pass_hash": "a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
+        "rol": "Cliente",
+        "permisos": [
+            "COMPRA_SELF"
+        ],
+        "bloqueado": false,
+        "codigo_recuperacion": "O5N5W9"
+    }
+}
